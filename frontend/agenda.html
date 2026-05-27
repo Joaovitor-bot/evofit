@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Evofit - Agenda</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body onload="protegerPagina(); carregarAlunosSelectAgenda(); listarAgenda();">
+  <div class="container">
+    <h1>Agenda</h1>
+
+    <div class="menu">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="alunos.html">Alunos</a>
+      <a href="treinos.html">Treinos</a>
+    </div>
+
+    <div class="card">
+      <h2>Agendar aula</h2>
+
+      <select id="agenda_aluno"></select>
+      <input type="date" id="agenda_data">
+      <input type="time" id="agenda_horario">
+      <input type="text" id="agenda_local" placeholder="Local do treino">
+
+      <button onclick="cadastrarAgenda()">Agendar</button>
+    </div>
+
+    <div class="card">
+      <h2>Aulas agendadas</h2>
+      <div id="listaAgenda"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

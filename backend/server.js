@@ -1,0 +1,529 @@
+const express = require("express");
+const cors = require("cors");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const db = require("./database");
+
+const app = express();
+const PORT = 3000;
+const SECRET = "evofit_secreto";
+
+app.use(cors());
+app.use(express.json());
+
+app.get("/", (req, res) => {
+  res.json({ mensagem: "API Evofit funcionando!" });
+});
+
+// CADASTRO DE USUÁRIO
+app.post("/usuarios", async (req, res) => {
+  const { nome, email, senha, tipo } = req.body;
+
+  if (!nome || !email || !senha) {
+    return res.status(400).json({ erro: "Preencha nome, email e senha." });
+  }
+
+  const senhaCriptografada = await bcrypt.hash(senha, 10);
+
+  db.run(
+    `INSERT INTO usuarios (nome, email, senha, tipo) VALUES (?, ?, ?, ?)`,
+    [nome, email, senhaCriptografada, tipo || "personal"],
+    function (err) {
+      if (err) {
+        return res.status(400).json({ erro: "E-mail já cadastrado." });
+      }
+
+      res.json({
+        mensagem: "Usuário cadastrado com sucesso!",
+        id: this.lastID
+      });
+    }
+  );
+});
+
+// LOGIN
+app.post("/login", (req, res) => {
+  const { email, senha } = req.body;
+
+  db.get(`SELECT * FROM usuarios WHERE email = ?`, [email], async (err, usuario) => {
+    if (err) {
+      return res.status(500).json({ erro: "Erro no servidor." });
+    }
+
+    if (!usuario) {
+      return res.status(401).json({ erro: "Usuário não encontrado." });
+    }
+
+    const senhaValida = await bcrypt.compare(senha, usuario.senha);
+
+    if (!senhaValida) {
+      return res.status(401).json({ erro: "Senha incorreta." });
+    }
+
+    const token = jwt.sign(
+      { id: usuario.id, email: usuario.email, tipo: usuario.tipo },
+      SECRET,
+      { expiresIn: "2h" }
+    );
+
+    res.json({
+      mensagem: "Login realizado com sucesso!",
+      token,
+      usuario: {
+        id: usuario.id,
+        nome: usuario.nome,
+        email: usuario.email,
+        tipo: usuario.tipo
+      }
+    });
+  });
+});
+
+// CADASTRAR ALUNO
+app.post("/alunos", (req, res) => {
+  const {
+    nome,
+    data_nascimento,
+    whatsapp,
+    email,
+    genero,
+    contato_emergencia
+  } = req.body;
+
+  if (!nome) {
+    return res.status(400).json({ erro: "O nome do aluno é obrigatório." });
+  }
+
+  db.run(
+    `INSERT INTO alunos 
+    (nome, data_nascimento, whatsapp, email, genero, contato_emergencia) 
+    VALUES (?, ?, ?, ?, ?, ?)`,
+    [nome, data_nascimento, whatsapp, email, genero, contato_emergencia],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ erro: "Erro ao cadastrar aluno." });
+      }
+
+      res.json({
+        mensagem: "Aluno cadastrado com sucesso!",
+        id: this.lastID
+      });
+    }
+  );
+});
+
+// LISTAR ALUNOS
+app.get("/alunos", (req, res) => {
+  db.all(`SELECT * FROM alunos ORDER BY nome ASC`, [], (err, alunos) => {
+    if (err) {
+      return res.status(500).json({ erro: "Erro ao listar alunos." });
+    }
+
+    res.json(alunos);
+  });
+});
+
+// EDITAR ALUNO
+app.put("/alunos/:id", (req, res) => {
+  const { id } = req.params;
+  const {
+    nome,
+    data_nascimento,
+    whatsapp,
+    email,
+    genero,
+    contato_emergencia,
+    status
+  } = req.body;
+
+  db.run(
+    `UPDATE alunos 
+     SET nome = ?, data_nascimento = ?, whatsapp = ?, email = ?, genero = ?, contato_emergencia = ?, status = ?
+     WHERE id = ?`,
+    [nome, data_nascimento, whatsapp, email, genero, contato_emergencia, status, id],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ erro: "Erro ao editar aluno." });
+      }
+
+      res.json({ mensagem: "Aluno atualizado com sucesso!" });
+    }
+  );
+});
+
+// EXCLUIR ALUNO
+app.delete("/alunos/:id", (req, res) => {
+  const { id } = req.params;
+
+  db.run(`DELETE FROM alunos WHERE id = ?`, [id], function (err) {
+    if (err) {
+      return res.status(500).json({ erro: "Erro ao excluir aluno." });
+    }
+
+    res.json({ mensagem: "Aluno excluído com sucesso!" });
+  });
+});
+
+// CADASTRAR TREINO
+app.post("/treinos", (req, res) => {
+  const { aluno_id, titulo, objetivo, exercicios, observacoes } = req.body;
+
+  db.run(
+    `INSERT INTO treinos (aluno_id, titulo, objetivo, exercicios, observacoes)
+     VALUES (?, ?, ?, ?, ?)`,
+    [aluno_id, titulo, objetivo, exercicios, observacoes],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ erro: "Erro ao cadastrar treino." });
+      }
+
+      res.json({
+        mensagem: "Treino cadastrado com sucesso!",
+        id: this.lastID
+      });
+    }
+  );
+});
+
+// LISTAR TREINOS
+app.get("/treinos", (req, res) => {
+  db.all(
+    `SELECT treinos.*, alunos.nome AS aluno_nome
+     FROM treinos
+     JOIN alunos ON alunos.id = treinos.aluno_id
+     ORDER BY treinos.id DESC`,
+    [],
+    (err, treinos) => {
+      if (err) {
+        return res.status(500).json({ erro: "Erro ao listar treinos." });
+      }
+
+      res.json(treinos);
+    }
+  );
+});
+
+// CADASTRAR AGENDAMENTO
+app.post("/agenda", (req, res) => {
+  const { aluno_id, data, horario, local, status } = req.body;
+
+  db.get(
+    `SELECT * FROM agenda WHERE data = ? AND horario = ?`,
+    [data, horario],
+    (err, conflito) => {
+      if (conflito) {
+        return res.status(400).json({
+          erro: "Já existe um agendamento nesse dia e horário."
+        });
+      }
+
+      db.run(
+        `INSERT INTO agenda (aluno_id, data, horario, local, status)
+         VALUES (?, ?, ?, ?, ?)`,
+        [aluno_id, data, horario, local, status || "Confirmada"],
+        function (err) {
+          if (err) {
+            return res.status(500).json({ erro: "Erro ao agendar aula." });
+          }
+
+          res.json({
+            mensagem: "Aula agendada com sucesso!",
+            id: this.lastID
+          });
+        }
+      );
+    }
+  );
+});
+
+// LISTAR AGENDA
+app.get("/agenda", (req, res) => {
+  db.all(
+    `SELECT agenda.*, alunos.nome AS aluno_nome
+     FROM agenda
+     JOIN alunos ON alunos.id = agenda.aluno_id
+     ORDER BY agenda.data ASC, agenda.horario ASC`,
+    [],
+    (err, agenda) => {
+      if (err) {
+        return res.status(500).json({ erro: "Erro ao listar agenda." });
+      }
+
+      res.json(agenda);
+    }
+  );
+});
+
+// CADASTRAR AGENDAMENTO COM VALIDAÇÃO DE DISPONIBILIDADE
+app.post("/agenda", (req, res) => {
+  const { aluno_id, data, horario, local, status } = req.body;
+
+  if (!aluno_id || !data || !horario) {
+    return res.status(400).json({
+      erro: "Preencha aluno, data e horário."
+    });
+  }
+
+  const diasSemana = [
+    "Domingo",
+    "Segunda-feira",
+    "Terça-feira",
+    "Quarta-feira",
+    "Quinta-feira",
+    "Sexta-feira",
+    "Sábado"
+  ];
+
+  const dataSelecionada = new Date(data + "T00:00:00");
+  const diaSemana = diasSemana[dataSelecionada.getDay()];
+
+  db.all(
+    `SELECT * FROM disponibilidade WHERE dia_semana = ?`,
+    [diaSemana],
+    (err, horariosDisponiveis) => {
+      if (err) {
+        return res.status(500).json({
+          erro: "Erro ao verificar disponibilidade."
+        });
+      }
+
+      if (horariosDisponiveis.length === 0) {
+        return res.status(400).json({
+          erro: `O personal não possui disponibilidade cadastrada para ${diaSemana}.`
+        });
+      }
+
+      const dentroDaDisponibilidade = horariosDisponiveis.some(item => {
+        return horario >= item.horario_inicio && horario <= item.horario_fim;
+      });
+
+      if (!dentroDaDisponibilidade) {
+        return res.status(400).json({
+          erro: `Horário fora da disponibilidade cadastrada para ${diaSemana}.`
+        });
+      }
+
+      db.get(
+        `SELECT * FROM agenda WHERE data = ? AND horario = ?`,
+        [data, horario],
+        (err, conflito) => {
+          if (err) {
+            return res.status(500).json({
+              erro: "Erro ao verificar conflito de agenda."
+            });
+          }
+
+          if (conflito) {
+            return res.status(400).json({
+              erro: "Já existe um agendamento nesse dia e horário."
+            });
+          }
+
+          db.run(
+            `INSERT INTO agenda (aluno_id, data, horario, local, status)
+             VALUES (?, ?, ?, ?, ?)`,
+            [aluno_id, data, horario, local, status || "Confirmada"],
+            function (err) {
+              if (err) {
+                return res.status(500).json({
+                  erro: "Erro ao agendar aula."
+                });
+              }
+
+              res.json({
+                mensagem: "Aula agendada com sucesso!",
+                id: this.lastID
+              });
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
+// CADASTRAR PERFIL DO PERSONAL
+app.post("/perfil-personal", (req, res) => {
+  const {
+    usuario_id,
+    nome_completo,
+    foto,
+    cref,
+    biografia,
+    telefone,
+    especialidades
+  } = req.body;
+
+  if (!nome_completo) {
+    return res.status(400).json({ erro: "O nome completo é obrigatório." });
+  }
+
+  db.run(
+    `INSERT INTO perfil_personal 
+    (usuario_id, nome_completo, foto, cref, biografia, telefone, especialidades)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [usuario_id, nome_completo, foto, cref, biografia, telefone, especialidades],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ erro: "Erro ao cadastrar perfil." });
+      }
+
+      res.json({
+        mensagem: "Perfil cadastrado com sucesso!",
+        id: this.lastID
+      });
+    }
+  );
+});
+
+// LISTAR PERFIS DO PERSONAL
+app.get("/perfil-personal", (req, res) => {
+  db.all(`SELECT * FROM perfil_personal ORDER BY id DESC`, [], (err, perfis) => {
+    if (err) {
+      return res.status(500).json({ erro: "Erro ao listar perfis." });
+    }
+
+    res.json(perfis);
+  });
+});
+
+// LISTAR DISPONIBILIDADES
+app.get("/disponibilidade", (req, res) => {
+  db.all(
+    `SELECT * FROM disponibilidade ORDER BY id DESC`,
+    [],
+    (err, disponibilidades) => {
+      if (err) {
+        return res.status(500).json({
+          erro: "Erro ao listar disponibilidades."
+        });
+      }
+
+      res.json(disponibilidades);
+    }
+  );
+});
+// CADASTRAR PERFIL DO PERSONAL
+app.post("/perfil-personal", (req, res) => {
+  const {
+    usuario_id,
+    nome_completo,
+    foto,
+    cref,
+    biografia,
+    telefone,
+    especialidades
+  } = req.body;
+
+  if (!nome_completo) {
+    return res.status(400).json({ erro: "O nome completo é obrigatório." });
+  }
+
+  db.run(
+    `INSERT INTO perfil_personal 
+    (usuario_id, nome_completo, foto, cref, biografia, telefone, especialidades)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [usuario_id, nome_completo, foto, cref, biografia, telefone, especialidades],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ erro: "Erro ao cadastrar perfil." });
+      }
+
+      res.json({
+        mensagem: "Perfil cadastrado com sucesso!",
+        id: this.lastID
+      });
+    }
+  );
+});
+
+// LISTAR PERFIS DO PERSONAL
+app.get("/perfil-personal", (req, res) => {
+  db.all(`SELECT * FROM perfil_personal ORDER BY id DESC`, [], (err, perfis) => {
+    if (err) {
+      return res.status(500).json({ erro: "Erro ao listar perfis." });
+    }
+
+    res.json(perfis);
+  });
+});
+
+// EXCLUIR DISPONIBILIDADE
+app.delete("/disponibilidade/:id", (req, res) => {
+  const { id } = req.params;
+
+  db.run(`DELETE FROM disponibilidade WHERE id = ?`, [id], function (err) {
+    if (err) {
+      return res.status(500).json({
+        erro: "Erro ao excluir disponibilidade."
+      });
+    }
+
+    res.json({
+      mensagem: "Disponibilidade excluída com sucesso!"
+    });
+  });
+});
+
+// CADASTRAR LOCAL DE ATENDIMENTO
+app.post("/locais", (req, res) => {
+  const { nome, endereco, latitude, longitude } = req.body;
+
+  if (!nome) {
+    return res.status(400).json({
+      erro: "O nome do local é obrigatório."
+    });
+  }
+
+  db.run(
+    `INSERT INTO locais (nome, endereco, latitude, longitude)
+     VALUES (?, ?, ?, ?)`,
+    [nome, endereco, latitude, longitude],
+    function (err) {
+      if (err) {
+        return res.status(500).json({
+          erro: "Erro ao cadastrar local."
+        });
+      }
+
+      res.json({
+        mensagem: "Local cadastrado com sucesso!",
+        id: this.lastID
+      });
+    }
+  );
+});
+
+// LISTAR LOCAIS
+app.get("/locais", (req, res) => {
+  db.all(`SELECT * FROM locais ORDER BY nome ASC`, [], (err, locais) => {
+    if (err) {
+      return res.status(500).json({
+        erro: "Erro ao listar locais."
+      });
+    }
+
+    res.json(locais);
+  });
+});
+
+// EXCLUIR LOCAL
+app.delete("/locais/:id", (req, res) => {
+  const { id } = req.params;
+
+  db.run(`DELETE FROM locais WHERE id = ?`, [id], function (err) {
+    if (err) {
+      return res.status(500).json({
+        erro: "Erro ao excluir local."
+      });
+    }
+
+    res.json({
+      mensagem: "Local excluído com sucesso!"
+    });
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`Servidor Evofit rodando em http://localhost:${PORT}`);
+});
