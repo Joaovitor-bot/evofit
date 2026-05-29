@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Evofit - Acesso do Aluno</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body onload="protegerPagina(); carregarAlunosAcesso();">
+  <div class="container">
+    <h1>Acesso do Aluno</h1>
+
+    <div class="menu">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="alunos.html">Alunos</a>
+      <a href="treinos.html">Treinos</a>
+      <a href="agenda.html">Agenda</a>
+      <a href="acompanhamento.html">Acompanhamento</a>
+    </div>
+
+    <div class="card">
+      <h2>Criar login para aluno</h2>
+
+      <select id="acesso_aluno">
+        <option value="">Selecione um aluno</option>
+      </select>
+
+      <input type="text" id="acesso_nome" placeholder="Nome do usuário">
+      <input type="email" id="acesso_email" placeholder="E-mail de acesso do aluno">
+      <input type="password" id="acesso_senha" placeholder="Senha do aluno">
+
+      <button onclick="criarAcessoAluno()">Criar acesso</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -17,20 +17,32 @@ app.get("/", (req, res) => {
 
 // CADASTRO DE USUÁRIO
 app.post("/usuarios", async (req, res) => {
-  const { nome, email, senha, tipo } = req.body;
+  const { nome, email, senha, tipo, aluno_id } = req.body;
 
   if (!nome || !email || !senha) {
-    return res.status(400).json({ erro: "Preencha nome, email e senha." });
+    return res.status(400).json({
+      erro: "Preencha nome, email e senha."
+    });
   }
 
   const senhaCriptografada = await bcrypt.hash(senha, 10);
 
   db.run(
-    `INSERT INTO usuarios (nome, email, senha, tipo) VALUES (?, ?, ?, ?)`,
-    [nome, email, senhaCriptografada, tipo || "personal"],
+    `INSERT INTO usuarios (nome, email, senha, tipo, aluno_id)
+     VALUES (?, ?, ?, ?, ?)`,
+    [
+      nome,
+      email,
+      senhaCriptografada,
+      tipo || "personal",
+      aluno_id ? Number(aluno_id) : null
+    ],
     function (err) {
       if (err) {
-        return res.status(400).json({ erro: "E-mail já cadastrado." });
+        console.error("Erro ao cadastrar usuário:", err.message);
+        return res.status(400).json({
+          erro: "E-mail já cadastrado."
+        });
       }
 
       res.json({
@@ -45,38 +57,55 @@ app.post("/usuarios", async (req, res) => {
 app.post("/login", (req, res) => {
   const { email, senha } = req.body;
 
-  db.get(`SELECT * FROM usuarios WHERE email = ?`, [email], async (err, usuario) => {
-    if (err) {
-      return res.status(500).json({ erro: "Erro no servidor." });
-    }
-
-    if (!usuario) {
-      return res.status(401).json({ erro: "Usuário não encontrado." });
-    }
-
-    const senhaValida = await bcrypt.compare(senha, usuario.senha);
-
-    if (!senhaValida) {
-      return res.status(401).json({ erro: "Senha incorreta." });
-    }
-
-    const token = jwt.sign(
-      { id: usuario.id, email: usuario.email, tipo: usuario.tipo },
-      SECRET,
-      { expiresIn: "2h" }
-    );
-
-    res.json({
-      mensagem: "Login realizado com sucesso!",
-      token,
-      usuario: {
-        id: usuario.id,
-        nome: usuario.nome,
-        email: usuario.email,
-        tipo: usuario.tipo
+  db.get(
+    `SELECT * FROM usuarios WHERE email = ?`,
+    [email],
+    async (err, usuario) => {
+      if (err) {
+        console.error("Erro no login:", err.message);
+        return res.status(500).json({
+          erro: "Erro no servidor."
+        });
       }
-    });
-  });
+
+      if (!usuario) {
+        return res.status(401).json({
+          erro: "Usuário não encontrado."
+        });
+      }
+
+      const senhaValida = await bcrypt.compare(senha, usuario.senha);
+
+      if (!senhaValida) {
+        return res.status(401).json({
+          erro: "Senha incorreta."
+        });
+      }
+
+      const token = jwt.sign(
+        {
+          id: usuario.id,
+          email: usuario.email,
+          tipo: usuario.tipo,
+          aluno_id: usuario.aluno_id
+        },
+        SECRET,
+        { expiresIn: "2h" }
+      );
+
+      res.json({
+        mensagem: "Login realizado com sucesso!",
+        token,
+        usuario: {
+          id: usuario.id,
+          nome: usuario.nome,
+          email: usuario.email,
+          tipo: usuario.tipo,
+          aluno_id: usuario.aluno_id
+        }
+      });
+    }
+  );
 });
 
 // CADASTRAR ALUNO
@@ -205,7 +234,7 @@ app.get("/treinos", (req, res) => {
 
 // CADASTRAR AGENDAMENTO
 app.post("/agenda", (req, res) => {
-  const { aluno_id, data, horario, local, status } = req.body;
+  const { aluno_id, data, horario, local, latitude, longitude, status } = req.body;
 
   db.get(
     `SELECT * FROM agenda WHERE data = ? AND horario = ?`,
@@ -218,9 +247,9 @@ app.post("/agenda", (req, res) => {
       }
 
       db.run(
-        `INSERT INTO agenda (aluno_id, data, horario, local, status)
-         VALUES (?, ?, ?, ?, ?)`,
-        [aluno_id, data, horario, local, status || "Confirmada"],
+        `INSERT INTO agenda (aluno_id, data, horario, local, latitude, longitude, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+         [aluno_id, data, horario, local, latitude, longitude, status || "Confirmada"],
         function (err) {
           if (err) {
             return res.status(500).json({ erro: "Erro ao agendar aula." });
@@ -239,14 +268,26 @@ app.post("/agenda", (req, res) => {
 // LISTAR AGENDA
 app.get("/agenda", (req, res) => {
   db.all(
-    `SELECT agenda.*, alunos.nome AS aluno_nome
+    `SELECT 
+      agenda.id,
+      agenda.aluno_id,
+      agenda.data,
+      agenda.horario,
+      agenda.local,
+      agenda.latitude,
+      agenda.longitude,
+      agenda.status,
+      alunos.nome AS aluno_nome
      FROM agenda
-     JOIN alunos ON alunos.id = agenda.aluno_id
+     LEFT JOIN alunos ON alunos.id = agenda.aluno_id
      ORDER BY agenda.data ASC, agenda.horario ASC`,
     [],
     (err, agenda) => {
       if (err) {
-        return res.status(500).json({ erro: "Erro ao listar agenda." });
+        console.error("Erro ao listar agenda:", err);
+        return res.status(500).json({
+          erro: "Erro ao listar agenda."
+        });
       }
 
       res.json(agenda);
@@ -256,7 +297,7 @@ app.get("/agenda", (req, res) => {
 
 // CADASTRAR AGENDAMENTO COM VALIDAÇÃO DE DISPONIBILIDADE
 app.post("/agenda", (req, res) => {
-  const { aluno_id, data, horario, local, status } = req.body;
+  const { aluno_id, data, horario, local, latitude, longitude, status } = req.body;
 
   if (!aluno_id || !data || !horario) {
     return res.status(400).json({
@@ -282,6 +323,7 @@ app.post("/agenda", (req, res) => {
     [diaSemana],
     (err, horariosDisponiveis) => {
       if (err) {
+        console.error(err);
         return res.status(500).json({
           erro: "Erro ao verificar disponibilidade."
         });
@@ -308,6 +350,7 @@ app.post("/agenda", (req, res) => {
         [data, horario],
         (err, conflito) => {
           if (err) {
+            console.error(err);
             return res.status(500).json({
               erro: "Erro ao verificar conflito de agenda."
             });
@@ -320,11 +363,20 @@ app.post("/agenda", (req, res) => {
           }
 
           db.run(
-            `INSERT INTO agenda (aluno_id, data, horario, local, status)
-             VALUES (?, ?, ?, ?, ?)`,
-            [aluno_id, data, horario, local, status || "Confirmada"],
+            `INSERT INTO agenda (aluno_id, data, horario, local, latitude, longitude, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              aluno_id,
+              data,
+              horario,
+              local || "",
+              latitude || "",
+              longitude || "",
+              status || "Confirmada"
+            ],
             function (err) {
               if (err) {
+                console.error(err);
                 return res.status(500).json({
                   erro: "Erro ao agendar aula."
                 });
@@ -522,6 +574,221 @@ app.delete("/locais/:id", (req, res) => {
       mensagem: "Local excluído com sucesso!"
     });
   });
+});
+
+// EXCLUIR AGENDAMENTO
+app.delete("/agenda/:id", (req, res) => {
+  const { id } = req.params;
+
+  db.run(`DELETE FROM agenda WHERE id = ?`, [id], function (err) {
+    if (err) {
+      console.error("Erro ao excluir agendamento:", err);
+      return res.status(500).json({
+        erro: "Erro ao excluir agendamento."
+      });
+    }
+
+    if (this.changes === 0) {
+      return res.status(404).json({
+        erro: "Agendamento não encontrado."
+      });
+    }
+
+    res.json({
+      mensagem: "Agendamento excluído com sucesso!"
+    });
+  });
+});
+
+// ATUALIZAR STATUS DO AGENDAMENTO
+app.patch("/agenda/:id/status", (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!status) {
+    return res.status(400).json({
+      erro: "Informe o status da aula."
+    });
+  }
+
+  db.run(
+    `UPDATE agenda SET status = ? WHERE id = ?`,
+    [status, id],
+    function (err) {
+      if (err) {
+        console.error("Erro ao atualizar status:", err);
+        return res.status(500).json({
+          erro: "Erro ao atualizar status da aula."
+        });
+      }
+
+      if (this.changes === 0) {
+        return res.status(404).json({
+          erro: "Agendamento não encontrado."
+        });
+      }
+
+      res.json({
+        mensagem: "Status atualizado com sucesso!"
+      });
+    }
+  );
+});
+
+// ACOMPANHAMENTO DO ALUNO
+app.get("/acompanhamento/:aluno_id", (req, res) => {
+  const { aluno_id } = req.params;
+
+  db.get(
+    `SELECT * FROM alunos WHERE id = ?`,
+    [aluno_id],
+    (err, aluno) => {
+      if (err) {
+        console.error("Erro ao buscar aluno:", err);
+        return res.status(500).json({
+          erro: "Erro ao buscar aluno."
+        });
+      }
+
+      if (!aluno) {
+        return res.status(404).json({
+          erro: "Aluno não encontrado."
+        });
+      }
+
+      db.all(
+        `SELECT * FROM treinos WHERE aluno_id = ? ORDER BY id DESC`,
+        [aluno_id],
+        (err, treinos) => {
+          if (err) {
+            console.error("Erro ao buscar treinos:", err);
+            return res.status(500).json({
+              erro: "Erro ao buscar treinos."
+            });
+          }
+
+          db.all(
+            `SELECT * FROM agenda WHERE aluno_id = ? ORDER BY data DESC, horario DESC`,
+            [aluno_id],
+            (err, agenda) => {
+              if (err) {
+                console.error("Erro ao buscar agenda:", err);
+                return res.status(500).json({
+                  erro: "Erro ao buscar agenda."
+                });
+              }
+
+              const resumo = {
+                total_aulas: agenda.length,
+                concluidas: agenda.filter(aula => aula.status === "Concluída").length,
+                faltas: agenda.filter(aula => aula.status === "Falta do aluno").length,
+                canceladas: agenda.filter(aula => aula.status === "Cancelada").length,
+                confirmadas: agenda.filter(aula => aula.status === "Confirmada").length
+              };
+
+              res.json({
+                aluno,
+                treinos,
+                agenda,
+                resumo
+              });
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
+// CADASTRO DE USUÁRIO
+app.post("/usuarios", async (req, res) => {
+  const { nome, email, senha, tipo, aluno_id } = req.body;
+
+  if (!nome || !email || !senha) {
+    return res.status(400).json({ erro: "Preencha nome, email e senha." });
+  }
+
+  const senhaCriptografada = await bcrypt.hash(senha, 10);
+
+  db.run(
+    `INSERT INTO usuarios (nome, email, senha, tipo, aluno_id) VALUES (?, ?, ?, ?, ?)`,
+    [nome, email, senhaCriptografada, tipo || "personal", aluno_id || null],
+    function (err) {
+      if (err) {
+        console.error("Erro ao cadastrar usuário:", err);
+        return res.status(400).json({ erro: "E-mail já cadastrado." });
+      }
+
+      res.json({
+        mensagem: "Usuário cadastrado com sucesso!",
+        id: this.lastID
+      });
+    }
+  );
+});
+
+// PAINEL DO ALUNO
+app.get("/painel-aluno/:aluno_id", (req, res) => {
+  const { aluno_id } = req.params;
+
+  db.get(
+    `SELECT * FROM alunos WHERE id = ?`,
+    [aluno_id],
+    (err, aluno) => {
+      if (err) {
+        console.error("Erro ao buscar aluno:", err);
+        return res.status(500).json({ erro: "Erro ao buscar aluno." });
+      }
+
+      if (!aluno) {
+        return res.status(404).json({ erro: "Aluno não encontrado." });
+      }
+
+      db.all(
+        `SELECT * FROM treinos WHERE aluno_id = ? ORDER BY id DESC`,
+        [aluno_id],
+        (err, treinos) => {
+          if (err) {
+            console.error("Erro ao buscar treinos:", err);
+            return res.status(500).json({ erro: "Erro ao buscar treinos." });
+          }
+
+          db.all(
+            `SELECT * FROM agenda WHERE aluno_id = ? ORDER BY data ASC, horario ASC`,
+            [aluno_id],
+            (err, agenda) => {
+              if (err) {
+                console.error("Erro ao buscar agenda:", err);
+                return res.status(500).json({ erro: "Erro ao buscar agenda." });
+              }
+
+              res.json({
+                aluno,
+                treinos,
+                agenda
+              });
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
+app.get("/debug/usuarios", (req, res) => {
+  db.all(
+    `SELECT id, nome, email, tipo, aluno_id FROM usuarios`,
+    [],
+    (err, usuarios) => {
+      if (err) {
+        return res.status(500).json({
+          erro: "Erro ao listar usuários."
+        });
+      }
+
+      res.json(usuarios);
+    }
+  );
 });
 
 app.listen(PORT, () => {

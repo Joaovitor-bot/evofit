@@ -10,14 +10,21 @@ const db = new sqlite3.Database("./evofit.db", (err) => {
 
 db.serialize(() => {
   db.run(`
-    CREATE TABLE IF NOT EXISTS usuarios (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      nome TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      senha TEXT NOT NULL,
-      tipo TEXT NOT NULL DEFAULT 'personal'
-    )
-  `);
+  CREATE TABLE IF NOT EXISTS usuarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    senha TEXT NOT NULL,
+    tipo TEXT NOT NULL DEFAULT 'personal',
+    aluno_id INTEGER
+  )
+   `);
+
+  db.run(`ALTER TABLE usuarios ADD COLUMN aluno_id INTEGER`, (err) => {
+  if (err && !err.message.includes("duplicate column name")) {
+    console.error("Erro ao adicionar aluno_id em usuarios:", err.message);
+    }
+  });
 
   db.run(`
     CREATE TABLE IF NOT EXISTS alunos (
@@ -45,16 +52,21 @@ db.serialize(() => {
   `);
 
   db.run(`
-    CREATE TABLE IF NOT EXISTS agenda (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      aluno_id INTEGER NOT NULL,
-      data TEXT NOT NULL,
-      horario TEXT NOT NULL,
-      local TEXT,
-      status TEXT DEFAULT 'Confirmada',
-      FOREIGN KEY (aluno_id) REFERENCES alunos(id)
-    )
-  `);
+  CREATE TABLE IF NOT EXISTS agenda (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    aluno_id INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    horario TEXT NOT NULL,
+    local TEXT,
+    latitude TEXT,
+    longitude TEXT,
+    status TEXT DEFAULT 'Confirmada',
+    FOREIGN KEY (aluno_id) REFERENCES alunos(id)
+  )
+`);
+
+  db.run(`ALTER TABLE agenda ADD COLUMN latitude TEXT`, () => {});
+  db.run(`ALTER TABLE agenda ADD COLUMN longitude TEXT`, () => {}); 
   
 db.run(`
   CREATE TABLE IF NOT EXISTS perfil_personal (
@@ -78,16 +90,6 @@ db.run(`
     horario_fim TEXT NOT NULL
     )
   `);
-
-  db.run(`
-  CREATE TABLE IF NOT EXISTS locais (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nome TEXT NOT NULL,
-    endereco TEXT,
-    latitude TEXT,
-    longitude TEXT
-  )
-`);
 
 });
 

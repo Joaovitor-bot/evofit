@@ -65,7 +65,16 @@ async function login() {
     localStorage.setItem("token", dados.token);
     localStorage.setItem("usuario", JSON.stringify(dados.usuario));
 
-    window.location.href = "dashboard.html";
+    if (dados.usuario.tipo === "aluno") {
+      if (!dados.usuario.aluno_id) {
+        alert("Este usuário aluno não está vinculado a nenhum cadastro de aluno.");
+        return;
+      }
+
+      window.location.href = "painel-aluno.html";
+    } else {
+      window.location.href = "dashboard.html";
+    }
   } catch (erro) {
     alert("Não foi possível conectar ao backend. Veja se o servidor está ligado.");
     console.error("Erro no login:", erro);
@@ -281,7 +290,9 @@ async function cadastrarAgenda() {
     data: document.getElementById("agenda_data").value,
     horario: document.getElementById("agenda_horario").value,
     local: document.getElementById("agenda_local").value.trim(),
-    status: "Confirmada"
+    latitude: "",
+    longitude: "",
+    status: document.getElementById("agenda_status").value
   };
 
   if (!agendamento.aluno_id || !agendamento.data || !agendamento.horario) {
@@ -289,43 +300,98 @@ async function cadastrarAgenda() {
     return;
   }
 
-  const resposta = await fetch(`${API}/agenda`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(agendamento)
-  });
+  if (!agendamento.local) {
+    alert("Digite o local da aula.");
+    return;
+  }
 
-  const dados = await resposta.json();
-  alert(dados.mensagem || dados.erro);
+  try {
+    const resposta = await fetch(`${API}/agenda`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(agendamento)
+    });
 
-  if (resposta.ok) {
-    listarAgenda();
+    const dados = await resposta.json();
+    alert(dados.mensagem || dados.erro);
+
+    if (resposta.ok) {
+      document.getElementById("agenda_data").value = "";
+      document.getElementById("agenda_horario").value = "";
+      document.getElementById("agenda_local").value = "";
+      document.getElementById("agenda_status").value = "Confirmada";
+
+      listarAgenda();
+      carregarDashboard();
+    }
+  } catch (erro) {
+    alert("Erro ao conectar com o backend. Veja se o servidor está ligado.");
+    console.error(erro);
   }
 }
 
 async function listarAgenda() {
-  const resposta = await fetch(`${API}/agenda`);
-  const agenda = await resposta.json();
+  try {
+    const resposta = await fetch(`${API}/agenda`);
+    const agenda = await resposta.json();
 
-  const lista = document.getElementById("listaAgenda");
+    const lista = document.getElementById("listaAgenda");
 
-  if (!lista) return;
+    if (!lista) return;
 
-  lista.innerHTML = "";
+    lista.innerHTML = "";
 
-  agenda.forEach(item => {
-    lista.innerHTML += `
-      <div class="lista-item">
-        <strong>${item.aluno_nome}</strong><br>
-        Data: ${item.data}<br>
-        Horário: ${item.horario}<br>
-        Local: ${item.local || "Não informado"}<br>
-        Status: ${item.status}
-      </div>
-    `;
-  });
+    if (!agenda || agenda.length === 0) {
+      lista.innerHTML = "<p>Nenhuma aula agendada ainda.</p>";
+      return;
+    }
+
+    agenda.forEach(item => {
+      const linkMapa = item.local
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.local)}`
+        : "";
+
+      lista.innerHTML += `
+        <div class="lista-item">
+          <strong>${item.aluno_nome || "Aluno não encontrado"}</strong><br>
+          Data: ${formatarData(item.data)}<br>
+          Horário: ${item.horario}<br>
+          Local: ${item.local || "Não informado"}<br>
+          Status: <strong>${item.status || "Confirmada"}</strong><br><br>
+
+          ${
+            linkMapa
+              ? `<a href="${linkMapa}" target="_blank">Abrir local no Google Maps</a><br><br>`
+              : ""
+          }
+
+          <select id="status_${item.id}">
+            <option value="Confirmada" ${item.status === "Confirmada" ? "selected" : ""}>Confirmada</option>
+            <option value="Concluída" ${item.status === "Concluída" ? "selected" : ""}>Concluída</option>
+            <option value="Falta do aluno" ${item.status === "Falta do aluno" ? "selected" : ""}>Falta do aluno</option>
+            <option value="Cancelada" ${item.status === "Cancelada" ? "selected" : ""}>Cancelada</option>
+          </select>
+
+          <button onclick="atualizarStatusAgenda(${item.id})">
+            Atualizar status
+          </button>
+
+          <button class="btn-excluir" onclick="excluirAgenda(${item.id})">
+            Excluir aula
+          </button>
+        </div>
+      `;
+    });
+  } catch (erro) {
+    console.error("Erro ao listar agenda:", erro);
+
+    const lista = document.getElementById("listaAgenda");
+    if (lista) {
+      lista.innerHTML = "<p>Erro ao carregar agenda.</p>";
+    }
+  }
 }
 
 function abrirEdicaoAluno(id, nome, data_nascimento, whatsapp, email, genero, contato_emergencia, status) {
@@ -538,28 +604,6 @@ async function listarPerfilPersonal() {
   });
 }
 
-function pegarLocalizacaoAtual() {
-  if (!navigator.geolocation) {
-    alert("Seu navegador não suporta localização.");
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(
-    function (posicao) {
-      const latitude = posicao.coords.latitude;
-      const longitude = posicao.coords.longitude;
-
-      document.getElementById("local_latitude").value = latitude;
-      document.getElementById("local_longitude").value = longitude;
-
-      alert("Localização capturada com sucesso!");
-    },
-    function () {
-      alert("Não foi possível pegar sua localização. Verifique se você permitiu o acesso.");
-    }
-  );
-}
-
 async function cadastrarLocal() {
   const local = {
     nome: document.getElementById("local_nome").value.trim(),
@@ -645,4 +689,404 @@ async function excluirLocal(id) {
   if (resposta.ok) {
     listarLocais();
   }
+}
+
+function pegarLocalizacaoAgenda() {
+  if (!navigator.geolocation) {
+    alert("Seu navegador não suporta localização.");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    function (posicao) {
+      const latitude = posicao.coords.latitude;
+      const longitude = posicao.coords.longitude;
+
+      document.getElementById("agenda_latitude").value = latitude;
+      document.getElementById("agenda_longitude").value = longitude;
+
+      alert("Localização capturada com sucesso!");
+    },
+    function () {
+      alert("Não foi possível pegar sua localização. Permita o acesso à localização no navegador.");
+    }
+  );
+}
+
+async function excluirAgenda(id) {
+  const confirmar = confirm("Tem certeza que deseja excluir esta aula?");
+
+  if (!confirmar) return;
+
+  try {
+    const resposta = await fetch(`${API}/agenda/${id}`, {
+      method: "DELETE"
+    });
+
+    const dados = await resposta.json();
+    alert(dados.mensagem || dados.erro);
+
+    if (resposta.ok) {
+      listarAgenda();
+      carregarDashboard();
+    }
+  } catch (erro) {
+    alert("Erro ao conectar com o backend.");
+    console.error("Erro ao excluir aula:", erro);
+  }
+}
+
+function formatarData(data) {
+  if (!data) return "Não informada";
+
+  const partes = data.split("-");
+
+  if (partes.length !== 3) {
+    return data;
+  }
+
+  return `${partes[2]}/${partes[1]}/${partes[0]}`;
+}
+
+async function atualizarStatusAgenda(id) {
+  const status = document.getElementById(`status_${id}`).value;
+
+  try {
+    const resposta = await fetch(`${API}/agenda/${id}/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ status })
+    });
+
+    const dados = await resposta.json();
+    alert(dados.mensagem || dados.erro);
+
+    if (resposta.ok) {
+      listarAgenda();
+      carregarDashboard();
+    }
+  } catch (erro) {
+    alert("Erro ao conectar com o backend.");
+    console.error("Erro ao atualizar status:", erro);
+  }
+}
+
+async function carregarAlunosAcompanhamento() {
+  try {
+    const resposta = await fetch(`${API}/alunos`);
+    const alunos = await resposta.json();
+
+    const select = document.getElementById("acompanhamento_aluno");
+
+    if (!select) return;
+
+    select.innerHTML = "<option value=''>Selecione um aluno</option>";
+
+    alunos.forEach(aluno => {
+      select.innerHTML += `<option value="${aluno.id}">${aluno.nome}</option>`;
+    });
+  } catch (erro) {
+    console.error("Erro ao carregar alunos:", erro);
+  }
+}
+
+async function buscarAcompanhamento() {
+  const alunoId = document.getElementById("acompanhamento_aluno").value;
+
+  if (!alunoId) {
+    alert("Selecione um aluno.");
+    return;
+  }
+
+  try {
+    const resposta = await fetch(`${API}/acompanhamento/${alunoId}`);
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      alert(dados.erro || "Erro ao buscar acompanhamento.");
+      return;
+    }
+
+    mostrarAcompanhamento(dados);
+  } catch (erro) {
+    alert("Erro ao conectar com o backend.");
+    console.error("Erro ao buscar acompanhamento:", erro);
+  }
+}
+
+function mostrarAcompanhamento(dados) {
+  const container = document.getElementById("resultadoAcompanhamento");
+
+  if (!container) return;
+
+  const aluno = dados.aluno;
+  const resumo = dados.resumo;
+  const treinos = dados.treinos;
+  const agenda = dados.agenda;
+
+  container.innerHTML = `
+    <div class="card">
+      <h2>Dados do aluno</h2>
+      <p><strong>Nome:</strong> ${aluno.nome}</p>
+      <p><strong>WhatsApp:</strong> ${aluno.whatsapp || "Não informado"}</p>
+      <p><strong>E-mail:</strong> ${aluno.email || "Não informado"}</p>
+      <p><strong>Status:</strong> ${aluno.status || "Ativo"}</p>
+    </div>
+
+    <div class="grid-dashboard">
+      <div class="card status-card">
+        <h2>${resumo.total_aulas}</h2>
+        <p>Total de aulas</p>
+      </div>
+
+      <div class="card status-card">
+        <h2>${resumo.confirmadas}</h2>
+        <p>Confirmadas</p>
+      </div>
+
+      <div class="card status-card">
+        <h2>${resumo.concluidas}</h2>
+        <p>Concluídas</p>
+      </div>
+
+      <div class="card status-card">
+        <h2>${resumo.faltas}</h2>
+        <p>Faltas</p>
+      </div>
+
+      <div class="card status-card">
+        <h2>${resumo.canceladas}</h2>
+        <p>Canceladas</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Treinos do aluno</h2>
+      <div id="treinosAcompanhamento"></div>
+    </div>
+
+    <div class="card">
+      <h2>Histórico de aulas</h2>
+      <div id="agendaAcompanhamento"></div>
+    </div>
+  `;
+
+  const divTreinos = document.getElementById("treinosAcompanhamento");
+
+  if (treinos.length === 0) {
+    divTreinos.innerHTML = "<p>Nenhum treino cadastrado para este aluno.</p>";
+  } else {
+    treinos.forEach(treino => {
+      divTreinos.innerHTML += `
+        <div class="lista-item">
+          <strong>${treino.titulo}</strong><br>
+          Objetivo: ${treino.objetivo || "Não informado"}<br>
+          Exercícios: ${treino.exercicios || "Não informado"}<br>
+          Observações: ${treino.observacoes || "Nenhuma"}
+        </div>
+      `;
+    });
+  }
+
+  const divAgenda = document.getElementById("agendaAcompanhamento");
+
+  if (agenda.length === 0) {
+    divAgenda.innerHTML = "<p>Nenhuma aula encontrada para este aluno.</p>";
+  } else {
+    agenda.forEach(aula => {
+      const linkMapa = aula.local
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(aula.local)}`
+        : "";
+
+      divAgenda.innerHTML += `
+        <div class="lista-item">
+          <strong>${formatarData(aula.data)} - ${aula.horario}</strong><br>
+          Local: ${aula.local || "Não informado"}<br>
+          Status: ${aula.status || "Confirmada"}<br><br>
+
+          ${
+            linkMapa
+              ? `<a href="${linkMapa}" target="_blank">Abrir local no Google Maps</a>`
+              : ""
+          }
+        </div>
+      `;
+    });
+  }
+}
+
+async function carregarAlunosAcesso() {
+  try {
+    const resposta = await fetch(`${API}/alunos`);
+    const alunos = await resposta.json();
+
+    const select = document.getElementById("acesso_aluno");
+
+    if (!select) return;
+
+    select.innerHTML = "<option value=''>Selecione um aluno</option>";
+
+    alunos.forEach(aluno => {
+      select.innerHTML += `<option value="${aluno.id}">${aluno.nome}</option>`;
+    });
+  } catch (erro) {
+    console.error("Erro ao carregar alunos:", erro);
+  }
+}
+
+async function criarAcessoAluno() {
+  const aluno_id = document.getElementById("acesso_aluno").value;
+  const nome = document.getElementById("acesso_nome").value.trim();
+  const email = document.getElementById("acesso_email").value.trim();
+  const senha = document.getElementById("acesso_senha").value.trim();
+
+  if (!aluno_id || !nome || !email || !senha) {
+    alert("Preencha aluno, nome, e-mail e senha.");
+    return;
+  }
+
+  try {
+    const resposta = await fetch(`${API}/usuarios`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        nome,
+        email,
+        senha,
+        tipo: "aluno",
+        aluno_id: Number(aluno_id)
+      })
+    });
+
+    const dados = await resposta.json();
+
+    alert(dados.mensagem || dados.erro);
+
+    if (resposta.ok) {
+      document.getElementById("acesso_aluno").value = "";
+      document.getElementById("acesso_nome").value = "";
+      document.getElementById("acesso_email").value = "";
+      document.getElementById("acesso_senha").value = "";
+    }
+  } catch (erro) {
+    alert("Erro ao conectar com o backend.");
+    console.error("Erro ao criar acesso:", erro);
+  }
+}
+
+async function carregarPainelAluno() {
+  const usuario = JSON.parse(localStorage.getItem("usuario"));
+
+  if (!usuario || usuario.tipo !== "aluno") {
+    alert("Acesso permitido apenas para alunos.");
+    window.location.href = "index.html";
+    return;
+  }
+
+  if (!usuario.aluno_id) {
+    alert("Este usuário não está vinculado a um aluno.");
+    window.location.href = "index.html";
+    return;
+  }
+
+  try {
+    const resposta = await fetch(`${API}/painel-aluno/${usuario.aluno_id}`);
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      alert(dados.erro || "Erro ao carregar painel do aluno.");
+      return;
+    }
+
+    document.getElementById("nomeAlunoPainel").innerText = `Bem-vindo, ${dados.aluno.nome}`;
+
+    const divTreinos = document.getElementById("meusTreinos");
+    const divAulas = document.getElementById("minhasAulas");
+
+    divTreinos.innerHTML = "";
+    divAulas.innerHTML = "";
+
+    if (dados.treinos.length === 0) {
+      divTreinos.innerHTML = "<p>Nenhum treino disponível ainda.</p>";
+    } else {
+      dados.treinos.forEach(treino => {
+        divTreinos.innerHTML += `
+          <div class="lista-item">
+            <strong>${treino.titulo}</strong><br>
+            Objetivo: ${treino.objetivo || "Não informado"}<br>
+            Exercícios: ${treino.exercicios || "Não informado"}<br>
+            Observações: ${treino.observacoes || "Nenhuma"}
+          </div>
+        `;
+      });
+    }
+
+    if (dados.agenda.length === 0) {
+      divAulas.innerHTML = "<p>Nenhuma aula agendada ainda.</p>";
+    } else {
+      dados.agenda.forEach(aula => {
+      const linkMapa = aula.local
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(aula.local)}`
+      : "";
+
+      const podeConcluir = aula.status === "Confirmada";
+
+      divAulas.innerHTML += `
+    <div class="lista-item">
+      <strong>${formatarData(aula.data)} - ${aula.horario}</strong><br>
+      Local: ${aula.local || "Não informado"}<br>
+      Status: <strong>${aula.status || "Confirmada"}</strong><br><br>
+
+      ${
+        linkMapa
+          ? `<a href="${linkMapa}" target="_blank">Abrir local no Google Maps</a><br><br>`
+          : ""
+      }
+
+      ${
+        podeConcluir
+          ? `<button onclick="alunoConcluirAula(${aula.id})">Marcar como concluída</button>`
+          : ""
+      }
+      </div>
+        `;
+      });
+    }
+  } catch (erro) {
+    alert("Erro ao conectar com o backend.");
+    console.error("Erro ao carregar painel do aluno:", erro);
+  }
+
+  async function alunoConcluirAula(id) {
+  const confirmar = confirm("Deseja marcar esta aula como concluída?");
+
+  if (!confirmar) return;
+
+  try {
+    const resposta = await fetch(`${API}/agenda/${id}/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        status: "Concluída"
+      })
+    });
+
+    const dados = await resposta.json();
+
+    alert(dados.mensagem || dados.erro);
+
+    if (resposta.ok) {
+      carregarPainelAluno();
+    }
+  } catch (erro) {
+    alert("Erro ao conectar com o backend.");
+    console.error("Erro ao concluir aula:", erro);
+  }
+ } 
 }

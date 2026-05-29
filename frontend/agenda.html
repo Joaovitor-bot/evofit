@@ -19,11 +19,20 @@
       <h2>Agendar aula</h2>
 
       <select id="agenda_aluno"></select>
+         
       <input type="date" id="agenda_data">
       <input type="time" id="agenda_horario">
-      <input type="text" id="agenda_local" placeholder="Local do treino">
+      <input type="text" id="agenda_local" placeholder="Local do treino. Ex: Smart Fit Madalena Recife">
+
+      <select id="agenda_status">
+      <option value="Confirmada">Confirmada</option>
+      <option value="Concluída">Concluída</option>
+      <option value="Falta do aluno">Falta do aluno</option>
+      <option value="Cancelada">Cancelada</option>
+      </select>
 
       <button onclick="cadastrarAgenda()">Agendar</button>
+
     </div>
 
     <div class="card">
