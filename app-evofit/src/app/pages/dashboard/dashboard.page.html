@@ -1,0 +1,90 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>Dashboard Evofit</ion-title>
+
+    <ion-buttons slot="end">
+      <ion-button (click)="sair()">
+        Sair
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <h2>Olá, {{ usuario?.nome || 'Personal' }}</h2>
+  <p>Gerencie seus alunos, treinos e agenda pelo app Evofit.</p>
+
+  <ion-grid>
+    <ion-row>
+      <ion-col size="12" size-md="4">
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>Alunos</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <p>Cadastre e acompanhe seus alunos.</p>
+            <ion-button expand="block" routerLink="/alunos">
+              Abrir
+            </ion-button>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+
+      <ion-col size="12" size-md="4">
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>Treinos</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <p>Crie e vincule treinos aos alunos.</p>
+            <ion-button expand="block" routerLink="/treinos">
+              Abrir
+            </ion-button>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+
+      <ion-col size="12" size-md="4">
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>Agenda</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <p>Organize aulas, locais e horários.</p>
+            <ion-button expand="block" routerLink="/agenda">
+              Abrir
+            </ion-button>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+
+      <ion-col size="12" size-md="4">
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>Acompanhamento</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <p>Veja histórico de aulas e treinos dos alunos.</p>
+            <ion-button expand="block" routerLink="/acompanhamento">
+              Abrir
+            </ion-button>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+
+      <ion-col size="12" size-md="4">
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>Acesso do Aluno</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <p>Crie login para o aluno acessar o app.</p>
+            <ion-button expand="block" routerLink="/acesso-aluno">
+              Abrir
+            </ion-button>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+</ion-content>
