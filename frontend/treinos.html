@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Evofit - Treinos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body onload="protegerPagina(); carregarAlunosSelect(); listarTreinos();">
+  <div class="container">
+    <h1>Treinos</h1>
+
+    <div class="menu">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="alunos.html">Alunos</a>
+      <a href="agenda.html">Agenda</a>
+    </div>
+
+    <div class="card">
+      <h2>Criar treino</h2>
+
+      <select id="treino_aluno"></select>
+      <input type="text" id="treino_titulo" placeholder="Título do treino">
+      <input type="text" id="treino_objetivo" placeholder="Objetivo">
+      <textarea id="treino_exercicios" placeholder="Exercícios"></textarea>
+      <textarea id="treino_observacoes" placeholder="Observações"></textarea>
+
+      <button onclick="cadastrarTreino()">Salvar treino</button>
+    </div>
+
+    <div class="card">
+      <h2>Treinos cadastrados</h2>
+      <div id="listaTreinos"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
