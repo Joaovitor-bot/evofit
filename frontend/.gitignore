@@ -1,5 +1,0 @@
-node_modules/
-backend/node_modules/
-backend/evofit.db
-.env
-.DS_Store
