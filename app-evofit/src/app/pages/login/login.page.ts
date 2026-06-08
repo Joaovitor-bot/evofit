@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { Router } from '@angular/router';
-import { AuthService } from '../../services/auth';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-login',
@@ -28,6 +28,8 @@ export class LoginPage {
 
     this.authService.login(this.email, this.senha).subscribe({
       next: (dados) => {
+        console.log('LOGIN OK:', dados);
+
         this.authService.salvarSessao(dados);
 
         if (dados.usuario.tipo === 'aluno') {
@@ -37,6 +39,7 @@ export class LoginPage {
         }
       },
       error: (err) => {
+        console.error('ERRO LOGIN:', err);
         this.erro = err.error?.erro || 'Erro ao fazer login.';
       }
     });

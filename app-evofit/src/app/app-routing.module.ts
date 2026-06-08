@@ -38,7 +38,11 @@ const routes: Routes = [
   {
     path: 'acesso-aluno',
     loadChildren: () => import('./pages/acesso-aluno/acesso-aluno.module').then(m => m.AcessoAlunoPageModule)
+  },  {
+    path: 'cadastro',
+    loadChildren: () => import('./pages/cadastro/cadastro.module').then( m => m.CadastroPageModule)
   }
+
 ];
 
 @NgModule({

@@ -29,6 +29,15 @@ export class AuthService {
     });
   }
 
+  cadastrar(nome: string, email: string, senha: string) {
+  return this.http.post(`${this.apiUrl}/usuarios`, {
+    nome,
+    email,
+    senha,
+    tipo: 'personal'
+  });
+ }
+
   salvarSessao(dados: LoginResponse): void {
     localStorage.setItem('token', dados.token);
     localStorage.setItem('usuario', JSON.stringify(dados.usuario));
