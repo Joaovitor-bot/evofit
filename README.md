@@ -20,8 +20,3 @@ App Ionic/Angular  <--HTTP-->  Node.js/Express API  <--SQLite-->  Banco de dados
 
 ## Status
 - em desenvolvimento...
-## Observações Técnicas
-- O backend é responsável por **todas as validações e persistência de dados**
-- O frontend Ionic consome a API via **HttpClient** e atualiza dinamicamente as telas
-- O app suporta **CRUD completo** de alunos, treinos e agenda
-- Mensagens de CSP no console do navegador (`.well-known/appspecific/...`) podem aparecer, mas **não afetam o funcionamento do app**
