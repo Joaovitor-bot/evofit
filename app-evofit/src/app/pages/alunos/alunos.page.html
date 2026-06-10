@@ -11,27 +11,28 @@
   <div *ngIf="mostrarForm">
     <ion-item>
       <ion-label position="floating">Nome</ion-label>
-      <ion-input [(ngModel)]="novoAluno.nome"></ion-input>
+      <ion-input [(ngModel)]="atualAluno.nome"></ion-input>
     </ion-item>
 
     <ion-item>
       <ion-label position="floating">WhatsApp</ion-label>
-      <ion-input [(ngModel)]="novoAluno.whatsapp"></ion-input>
+      <ion-input [(ngModel)]="atualAluno.whatsapp"></ion-input>
     </ion-item>
 
     <ion-item>
       <ion-label position="floating">E-mail</ion-label>
-      <ion-input [(ngModel)]="novoAluno.email"></ion-input>
+      <ion-input [(ngModel)]="atualAluno.email"></ion-input>
     </ion-item>
 
     <ion-item>
       <ion-label>Gênero</ion-label>
-      <ion-select [(ngModel)]="novoAluno.genero">
+      <ion-select [(ngModel)]="atualAluno.genero">
         <ion-select-option *ngFor="let g of generos" [value]="g">{{ g }}</ion-select-option>
       </ion-select>
     </ion-item>
 
-    <ion-button expand="block" (click)="cadastrarAluno()">Cadastrar</ion-button>
+    <ion-button expand="block" (click)="salvarAluno()">Salvar</ion-button>
+    <ion-button expand="block" fill="clear" (click)="cancelarForm()">Cancelar</ion-button>
   </div>
 
   <ion-list>
@@ -39,9 +40,8 @@
       <ion-label>
         {{ aluno.nome }} - {{ aluno.whatsapp }} - {{ aluno.email }} - {{ aluno.genero }}
       </ion-label>
-      <ion-button color="danger" slot="end" (click)="aluno.id && excluirAluno(aluno.id)">
-        Excluir
-      </ion-button>
+      <ion-button color="primary" slot="end" (click)="abrirForm(aluno)">Editar</ion-button>
+      <ion-button color="danger" slot="end" (click)="aluno.id && excluirAluno(aluno.id)">Excluir</ion-button>
     </ion-item>
   </ion-list>
 
