@@ -5,7 +5,6 @@ import { FormsModule } from '@angular/forms';
 import { IonicModule } from '@ionic/angular';
 
 import { TreinosPageRoutingModule } from './treinos-routing.module';
-
 import { TreinosPage } from './treinos.page';
 
 @NgModule({

@@ -4,7 +4,8 @@ import { Observable } from 'rxjs';
 
 export interface Treino {
   id?: number;
-  aluno_id: number;
+  aluno_id: number | null;
+  aluno_nome?: string;
   titulo: string;
   objetivo?: string;
   exercicios?: string;
@@ -19,8 +20,12 @@ export class TreinosService {
 
   constructor(private http: HttpClient) {}
 
-  listar(aluno_id: number): Observable<Treino[]> {
-    return this.http.get<Treino[]>(`${this.apiUrl}/treinos?aluno_id=${aluno_id}`);
+  listar(aluno_id?: number | null): Observable<Treino[]> {
+    if (aluno_id) {
+      return this.http.get<Treino[]>(`${this.apiUrl}/treinos?aluno_id=${aluno_id}`);
+    }
+
+    return this.http.get<Treino[]>(`${this.apiUrl}/treinos`);
   }
 
   cadastrar(treino: Treino): Observable<any> {
