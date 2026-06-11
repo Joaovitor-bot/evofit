@@ -216,20 +216,82 @@ app.post("/treinos", (req, res) => {
 
 // LISTAR TREINOS
 app.get("/treinos", (req, res) => {
-  db.all(
-    `SELECT treinos.*, alunos.nome AS aluno_nome
-     FROM treinos
-     JOIN alunos ON alunos.id = treinos.aluno_id
-     ORDER BY treinos.id DESC`,
-    [],
-    (err, treinos) => {
+  const { aluno_id } = req.query;
+
+  let sql = `
+    SELECT 
+      treinos.*,
+      alunos.nome AS aluno_nome
+    FROM treinos
+    LEFT JOIN alunos ON alunos.id = treinos.aluno_id
+  `;
+
+  const params = [];
+
+  if (aluno_id) {
+    sql += ` WHERE treinos.aluno_id = ?`;
+    params.push(aluno_id);
+  }
+
+  sql += ` ORDER BY treinos.id DESC`;
+
+  db.all(sql, params, (err, treinos) => {
+    if (err) {
+      console.error("Erro ao listar treinos:", err.message);
+      return res.status(500).json({ erro: "Erro ao listar treinos." });
+    }
+
+    res.json(treinos);
+  });
+});
+
+// EDITAR TREINO
+app.put("/treinos/:id", (req, res) => {
+  const { id } = req.params;
+  const { aluno_id, titulo, objetivo, exercicios, observacoes } = req.body;
+
+  if (!aluno_id || !titulo) {
+    return res.status(400).json({
+      erro: "Aluno e título do treino são obrigatórios."
+    });
+  }
+
+  db.run(
+    `UPDATE treinos
+     SET aluno_id = ?, titulo = ?, objetivo = ?, exercicios = ?, observacoes = ?
+     WHERE id = ?`,
+    [aluno_id, titulo, objetivo, exercicios, observacoes, id],
+    function (err) {
       if (err) {
-        return res.status(500).json({ erro: "Erro ao listar treinos." });
+        console.error("Erro ao editar treino:", err.message);
+        return res.status(500).json({ erro: "Erro ao editar treino." });
       }
 
-      res.json(treinos);
+      if (this.changes === 0) {
+        return res.status(404).json({ erro: "Treino não encontrado." });
+      }
+
+      res.json({ mensagem: "Treino atualizado com sucesso!" });
     }
   );
+});
+
+// EXCLUIR TREINO
+app.delete("/treinos/:id", (req, res) => {
+  const { id } = req.params;
+
+  db.run(`DELETE FROM treinos WHERE id = ?`, [id], function (err) {
+    if (err) {
+      console.error("Erro ao excluir treino:", err.message);
+      return res.status(500).json({ erro: "Erro ao excluir treino." });
+    }
+
+    if (this.changes === 0) {
+      return res.status(404).json({ erro: "Treino não encontrado." });
+    }
+
+    res.json({ mensagem: "Treino excluído com sucesso!" });
+  });
 });
 
 // CADASTRAR AGENDAMENTO
