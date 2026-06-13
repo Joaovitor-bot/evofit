@@ -296,29 +296,64 @@ app.delete("/treinos/:id", (req, res) => {
 
 // CADASTRAR AGENDAMENTO
 app.post("/agenda", (req, res) => {
-  const { aluno_id, data, horario, local, latitude, longitude, status } = req.body;
+  const {
+    aluno_id,
+    data,
+    horario,
+    local,
+    latitude,
+    longitude,
+    status
+  } = req.body;
+
+  if (!aluno_id || !data || !horario) {
+    return res.status(400).json({
+      erro: "Aluno, data e horário são obrigatórios."
+    });
+  }
 
   db.get(
-    `SELECT * FROM agenda WHERE data = ? AND horario = ?`,
+    `SELECT id FROM agenda WHERE data = ? AND horario = ?`,
     [data, horario],
     (err, conflito) => {
+      if (err) {
+        console.error("Erro ao verificar agenda:", err.message);
+
+        return res.status(500).json({
+          erro: "Erro ao verificar disponibilidade da agenda."
+        });
+      }
+
       if (conflito) {
         return res.status(400).json({
-          erro: "Já existe um agendamento nesse dia e horário."
+          erro: "Já existe uma aula cadastrada nesse dia e horário."
         });
       }
 
       db.run(
-        `INSERT INTO agenda (aluno_id, data, horario, local, latitude, longitude, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-         [aluno_id, data, horario, local, latitude, longitude, status || "Confirmada"],
+        `INSERT INTO agenda
+        (aluno_id, data, horario, local, latitude, longitude, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          Number(aluno_id),
+          data,
+          horario,
+          local || "",
+          latitude || "",
+          longitude || "",
+          status || "Confirmada"
+        ],
         function (err) {
           if (err) {
-            return res.status(500).json({ erro: "Erro ao agendar aula." });
+            console.error("Erro ao cadastrar aula:", err.message);
+
+            return res.status(500).json({
+              erro: "Erro ao cadastrar aula."
+            });
           }
 
-          res.json({
-            mensagem: "Aula agendada com sucesso!",
+          res.status(201).json({
+            mensagem: "Aula cadastrada com sucesso!",
             id: this.lastID
           });
         }
@@ -353,105 +388,6 @@ app.get("/agenda", (req, res) => {
       }
 
       res.json(agenda);
-    }
-  );
-});
-
-// CADASTRAR AGENDAMENTO COM VALIDAÇÃO DE DISPONIBILIDADE
-app.post("/agenda", (req, res) => {
-  const { aluno_id, data, horario, local, latitude, longitude, status } = req.body;
-
-  if (!aluno_id || !data || !horario) {
-    return res.status(400).json({
-      erro: "Preencha aluno, data e horário."
-    });
-  }
-
-  const diasSemana = [
-    "Domingo",
-    "Segunda-feira",
-    "Terça-feira",
-    "Quarta-feira",
-    "Quinta-feira",
-    "Sexta-feira",
-    "Sábado"
-  ];
-
-  const dataSelecionada = new Date(data + "T00:00:00");
-  const diaSemana = diasSemana[dataSelecionada.getDay()];
-
-  db.all(
-    `SELECT * FROM disponibilidade WHERE dia_semana = ?`,
-    [diaSemana],
-    (err, horariosDisponiveis) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({
-          erro: "Erro ao verificar disponibilidade."
-        });
-      }
-
-      if (horariosDisponiveis.length === 0) {
-        return res.status(400).json({
-          erro: `O personal não possui disponibilidade cadastrada para ${diaSemana}.`
-        });
-      }
-
-      const dentroDaDisponibilidade = horariosDisponiveis.some(item => {
-        return horario >= item.horario_inicio && horario <= item.horario_fim;
-      });
-
-      if (!dentroDaDisponibilidade) {
-        return res.status(400).json({
-          erro: `Horário fora da disponibilidade cadastrada para ${diaSemana}.`
-        });
-      }
-
-      db.get(
-        `SELECT * FROM agenda WHERE data = ? AND horario = ?`,
-        [data, horario],
-        (err, conflito) => {
-          if (err) {
-            console.error(err);
-            return res.status(500).json({
-              erro: "Erro ao verificar conflito de agenda."
-            });
-          }
-
-          if (conflito) {
-            return res.status(400).json({
-              erro: "Já existe um agendamento nesse dia e horário."
-            });
-          }
-
-          db.run(
-            `INSERT INTO agenda (aluno_id, data, horario, local, latitude, longitude, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [
-              aluno_id,
-              data,
-              horario,
-              local || "",
-              latitude || "",
-              longitude || "",
-              status || "Confirmada"
-            ],
-            function (err) {
-              if (err) {
-                console.error(err);
-                return res.status(500).json({
-                  erro: "Erro ao agendar aula."
-                });
-              }
-
-              res.json({
-                mensagem: "Aula agendada com sucesso!",
-                id: this.lastID
-              });
-            }
-          );
-        }
-      );
     }
   );
 });
