@@ -11,101 +11,228 @@ const SECRET = "evofit_secreto";
 app.use(cors());
 app.use(express.json());
 
+function normalizarCpf(cpf = "") {
+  return String(cpf).replace(/\D/g, "");
+}
+
+function normalizarEmail(email = "") {
+  return String(email).trim().toLowerCase();
+}
+
 app.get("/", (req, res) => {
   res.json({ mensagem: "API Evofit funcionando!" });
 });
 
-// CADASTRO DE USUÁRIO
+// CADASTRAR USUÁRIO
 app.post("/usuarios", async (req, res) => {
-  const { nome, email, senha, tipo, aluno_id } = req.body;
+  const {
+    nome,
+    email,
+    cpf,
+    senha,
+    tipo,
+    aluno_id,
+    primeiro_acesso
+  } = req.body;
 
-  if (!nome || !email || !senha) {
+  const emailNormalizado = normalizarEmail(email);
+  const cpfNormalizado = normalizarCpf(cpf);
+
+  if (!nome || !emailNormalizado || !senha) {
     return res.status(400).json({
-      erro: "Preencha nome, email e senha."
+      erro: "Preencha nome, e-mail e senha."
     });
   }
 
-  const senhaCriptografada = await bcrypt.hash(senha, 10);
+  if (cpfNormalizado && cpfNormalizado.length !== 11) {
+    return res.status(400).json({
+      erro: "O CPF deve possuir 11 números."
+    });
+  }
 
-  db.run(
-    `INSERT INTO usuarios (nome, email, senha, tipo, aluno_id)
-     VALUES (?, ?, ?, ?, ?)`,
+  const tipoUsuario = tipo || "personal";
+
+  const primeiroAcessoValor =
+    primeiro_acesso !== undefined
+      ? Number(primeiro_acesso) === 1
+        ? 1
+        : 0
+      : tipoUsuario === "aluno"
+        ? 1
+        : 0;
+
+  db.get(
+    `SELECT id
+     FROM usuarios
+     WHERE email = ?
+        OR (? != '' AND cpf = ?)`,
     [
-      nome,
-      email,
-      senhaCriptografada,
-      tipo || "personal",
-      aluno_id ? Number(aluno_id) : null
+      emailNormalizado,
+      cpfNormalizado,
+      cpfNormalizado
     ],
-    function (err) {
+    async (err, usuarioExistente) => {
       if (err) {
-        console.error("Erro ao cadastrar usuário:", err.message);
-        return res.status(400).json({
-          erro: "E-mail já cadastrado."
+        console.error(
+          "Erro ao verificar usuário:",
+          err.message
+        );
+
+        return res.status(500).json({
+          erro: "Erro ao verificar usuário."
         });
       }
 
-      res.json({
-        mensagem: "Usuário cadastrado com sucesso!",
-        id: this.lastID
-      });
+      if (usuarioExistente) {
+        return res.status(400).json({
+          erro: "E-mail ou CPF já cadastrado."
+        });
+      }
+
+      try {
+        const senhaCriptografada = await bcrypt.hash(
+          senha,
+          10
+        );
+
+        db.run(
+          `INSERT INTO usuarios
+          (
+            nome,
+            cpf,
+            email,
+            senha,
+            tipo,
+            aluno_id,
+            primeiro_acesso
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            nome.trim(),
+            cpfNormalizado || null,
+            emailNormalizado,
+            senhaCriptografada,
+            tipoUsuario,
+            aluno_id ? Number(aluno_id) : null,
+            primeiroAcessoValor
+          ],
+          function (err) {
+            if (err) {
+              console.error(
+                "Erro ao cadastrar usuário:",
+                err.message
+              );
+
+              return res.status(500).json({
+                erro: "Erro ao cadastrar usuário."
+              });
+            }
+
+            res.status(201).json({
+              mensagem: "Usuário cadastrado com sucesso!",
+              id: this.lastID
+            });
+          }
+        );
+      } catch (erro) {
+        console.error(
+          "Erro ao criptografar senha:",
+          erro
+        );
+
+        res.status(500).json({
+          erro: "Erro ao cadastrar usuário."
+        });
+      }
     }
   );
 });
 
-// LOGIN
+// LOGIN COM CPF OU E-MAIL
 app.post("/login", (req, res) => {
-  const { email, senha } = req.body;
+  const {
+    identificador,
+    email,
+    senha
+  } = req.body;
 
-  db.get(
-    `SELECT * FROM usuarios WHERE email = ?`,
-    [email],
-    async (err, usuario) => {
-      if (err) {
-        console.error("Erro no login:", err.message);
-        return res.status(500).json({
-          erro: "Erro no servidor."
-        });
-      }
+  // Mantém compatibilidade com o app atual,
+  // que ainda envia o campo "email".
+  const loginInformado = String(
+    identificador || email || ""
+  ).trim();
 
-      if (!usuario) {
-        return res.status(401).json({
-          erro: "Usuário não encontrado."
-        });
-      }
+  if (!loginInformado || !senha) {
+    return res.status(400).json({
+      erro: "Informe CPF ou e-mail e senha."
+    });
+  }
 
-      const senhaValida = await bcrypt.compare(senha, usuario.senha);
+  const cpfNormalizado = normalizarCpf(loginInformado);
+  const pareceCpf =
+    cpfNormalizado.length === 11 &&
+    !loginInformado.includes("@");
 
-      if (!senhaValida) {
-        return res.status(401).json({
-          erro: "Senha incorreta."
-        });
-      }
+  const sql = pareceCpf
+    ? `SELECT * FROM usuarios WHERE cpf = ?`
+    : `SELECT * FROM usuarios WHERE email = ?`;
 
-      const token = jwt.sign(
-        {
-          id: usuario.id,
-          email: usuario.email,
-          tipo: usuario.tipo,
-          aluno_id: usuario.aluno_id
-        },
-        SECRET,
-        { expiresIn: "2h" }
-      );
+  const valorBusca = pareceCpf
+    ? cpfNormalizado
+    : normalizarEmail(loginInformado);
 
-      res.json({
-        mensagem: "Login realizado com sucesso!",
-        token,
-        usuario: {
-          id: usuario.id,
-          nome: usuario.nome,
-          email: usuario.email,
-          tipo: usuario.tipo,
-          aluno_id: usuario.aluno_id
-        }
+  db.get(sql, [valorBusca], async (err, usuario) => {
+    if (err) {
+      console.error("Erro no login:", err.message);
+
+      return res.status(500).json({
+        erro: "Erro no servidor."
       });
     }
-  );
+
+    if (!usuario) {
+      return res.status(401).json({
+        erro: "Usuário não encontrado."
+      });
+    }
+
+    const senhaValida = await bcrypt.compare(
+      senha,
+      usuario.senha
+    );
+
+    if (!senhaValida) {
+      return res.status(401).json({
+        erro: "Senha incorreta."
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        id: usuario.id,
+        email: usuario.email,
+        tipo: usuario.tipo,
+        aluno_id: usuario.aluno_id
+      },
+      SECRET,
+      { expiresIn: "2h" }
+    );
+
+    res.json({
+      mensagem: "Login realizado com sucesso!",
+      token,
+      usuario: {
+        id: usuario.id,
+        nome: usuario.nome,
+        cpf: usuario.cpf,
+        email: usuario.email,
+        tipo: usuario.tipo,
+        aluno_id: usuario.aluno_id,
+        primeiro_acesso:
+          Boolean(usuario.primeiro_acesso)
+      }
+    });
+  });
 });
 
 // CADASTRAR ALUNO
@@ -694,33 +821,6 @@ app.get("/acompanhamento/:aluno_id", (req, res) => {
           );
         }
       );
-    }
-  );
-});
-
-// CADASTRO DE USUÁRIO
-app.post("/usuarios", async (req, res) => {
-  const { nome, email, senha, tipo, aluno_id } = req.body;
-
-  if (!nome || !email || !senha) {
-    return res.status(400).json({ erro: "Preencha nome, email e senha." });
-  }
-
-  const senhaCriptografada = await bcrypt.hash(senha, 10);
-
-  db.run(
-    `INSERT INTO usuarios (nome, email, senha, tipo, aluno_id) VALUES (?, ?, ?, ?, ?)`,
-    [nome, email, senhaCriptografada, tipo || "personal", aluno_id || null],
-    function (err) {
-      if (err) {
-        console.error("Erro ao cadastrar usuário:", err);
-        return res.status(400).json({ erro: "E-mail já cadastrado." });
-      }
-
-      res.json({
-        mensagem: "Usuário cadastrado com sucesso!",
-        id: this.lastID
-      });
     }
   );
 });
