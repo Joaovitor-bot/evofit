@@ -3,9 +3,15 @@ import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
 
 const routes: Routes = [
   {
-    path: '',
-    redirectTo: 'login',
-    pathMatch: 'full'
+  path: '',
+  redirectTo: 'tipo-acesso',
+  pathMatch: 'full'
+  },
+  {
+  path: 'tipo-acesso',
+  loadChildren: () =>
+    import('./pages/tipo-acesso/tipo-acesso.module')
+      .then(m => m.TipoAcessoPageModule)
   },
   {
     path: 'login',
@@ -38,9 +44,14 @@ const routes: Routes = [
   {
     path: 'acesso-aluno',
     loadChildren: () => import('./pages/acesso-aluno/acesso-aluno.module').then(m => m.AcessoAlunoPageModule)
-  },  {
+  },
+  {
     path: 'cadastro',
     loadChildren: () => import('./pages/cadastro/cadastro.module').then( m => m.CadastroPageModule)
+  },
+  {
+    path: 'tipo-acesso',
+    loadChildren: () => import('./pages/tipo-acesso/tipo-acesso.module').then( m => m.TipoAcessoPageModule)
   }
 
 ];
