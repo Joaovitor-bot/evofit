@@ -78,21 +78,6 @@
         ></ion-input>
       </ion-item>
 
-      <ion-item>
-        <ion-select
-          label="Status inicial"
-          labelPlacement="stacked"
-          [(ngModel)]="novaAula.status"
-        >
-          <ion-select-option
-            *ngFor="let status of statusDisponiveis"
-            [value]="status"
-          >
-            {{ status }}
-          </ion-select-option>
-        </ion-select>
-      </ion-item>
-
       <ion-button
         expand="block"
         class="ion-margin-top"
@@ -149,21 +134,57 @@
         Ver no mapa
       </ion-button>
 
-      <ion-item class="ion-margin-top">
-        <ion-select
-          label="Status"
-          labelPlacement="stacked"
-          [value]="aula.status"
-          (ionChange)="alterarStatus(aula.id, $event.detail.value)"
-        >
-          <ion-select-option
-            *ngFor="let status of statusDisponiveis"
-            [value]="status"
-          >
-            {{ status }}
-          </ion-select-option>
-        </ion-select>
-      </ion-item>
+  <div class="ion-margin-top">
+  <p>
+    <strong>Status:</strong>
+    <ion-badge color="primary">
+      {{ aula.status }}
+    </ion-badge>
+  </p>
+</div>
+
+<div *ngIf="aula.status === 'Pendente'">
+  <ion-text color="warning">
+    <p>Aguardando confirmação do aluno.</p>
+  </ion-text>
+
+  <ion-button
+    expand="block"
+    color="warning"
+    fill="outline"
+    (click)="cancelarPeloPersonal(aula.id)"
+  >
+    Cancelar agendamento
+  </ion-button>
+</div>
+
+<div *ngIf="aula.status === 'Confirmada'">
+  <ion-button
+    expand="block"
+    color="success"
+    (click)="concluirAula(aula.id)"
+  >
+    Marcar como concluída
+  </ion-button>
+
+  <ion-button
+    expand="block"
+    color="warning"
+    fill="outline"
+    (click)="registrarFalta(aula.id)"
+  >
+    Registrar falta
+  </ion-button>
+
+  <ion-button
+    expand="block"
+    color="danger"
+    fill="outline"
+    (click)="cancelarPeloPersonal(aula.id)"
+  >
+    Cancelar aula
+  </ion-button>
+</div>
 
       <ion-button
         expand="block"

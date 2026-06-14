@@ -21,13 +21,6 @@ export class AgendaPage {
   mensagem = '';
   erro = '';
 
-  statusDisponiveis: StatusAula[] = [
-    'Confirmada',
-    'Concluída',
-    'Falta do aluno',
-    'Cancelada'
-  ];
-
   novaAula: Aula = this.criarAulaVazia();
 
   constructor(
@@ -126,29 +119,71 @@ export class AgendaPage {
     });
   }
 
-  alterarStatus(
-    id: number | undefined,
-    status: StatusAula
-  ): void {
-    if (!id) {
-      return;
-    }
-
-    this.limparMensagens();
-
-    this.agendaService.atualizarStatus(id, status).subscribe({
-      next: () => {
-        this.mensagem = 'Status atualizado com sucesso!';
-        this.carregarAgenda();
-      },
-      error: (err) => {
-        console.error('Erro ao atualizar status:', err);
-        this.erro =
-          err.error?.erro ||
-          'Não foi possível atualizar o status.';
-      }
-    });
+  private atualizarStatus(
+  id: number | undefined,
+  status: StatusAula,
+  mensagemSucesso: string
+): void {
+  if (!id) {
+    return;
   }
+
+  this.limparMensagens();
+
+  this.agendaService.atualizarStatus(id, status).subscribe({
+    next: () => {
+      this.mensagem = mensagemSucesso;
+      this.carregarAgenda();
+    },
+    error: (err) => {
+      console.error('Erro ao atualizar status:', err);
+
+      this.erro =
+        err.error?.erro ||
+        'Não foi possível atualizar o status da aula.';
+    }
+  });
+}
+
+concluirAula(id?: number): void {
+  this.atualizarStatus(
+    id,
+    'Concluída',
+    'Aula marcada como concluída!'
+  );
+}
+
+registrarFalta(id?: number): void {
+  const confirmar = window.confirm(
+    'Deseja registrar falta para este aluno?'
+  );
+
+  if (!confirmar) {
+    return;
+  }
+
+  this.atualizarStatus(
+    id,
+    'Falta do aluno',
+    'Falta registrada com sucesso!'
+  );
+}
+
+cancelarPeloPersonal(id?: number): void {
+  const confirmar = window.confirm(
+    'Deseja cancelar esta aula?'
+  );
+
+  if (!confirmar) {
+    return;
+  }
+
+  this.atualizarStatus(
+    id,
+    'Cancelada pelo personal',
+    'Aula cancelada pelo personal.'
+  );
+}
 
   excluirAula(id: number | undefined): void {
     if (!id) {

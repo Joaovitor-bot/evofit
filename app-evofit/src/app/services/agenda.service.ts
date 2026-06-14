@@ -3,10 +3,12 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 export type StatusAula =
+  | 'Pendente'
   | 'Confirmada'
+  | 'Recusada pelo aluno'
+  | 'Cancelada pelo personal'
   | 'Concluída'
-  | 'Falta do aluno'
-  | 'Cancelada';
+  | 'Falta do aluno';
 
 export interface Aula {
   id?: number;

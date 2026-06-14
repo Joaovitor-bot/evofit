@@ -303,7 +303,7 @@ app.post("/agenda", (req, res) => {
     local,
     latitude,
     longitude,
-    status
+    
   } = req.body;
 
   if (!aluno_id || !data || !horario) {
@@ -341,7 +341,7 @@ app.post("/agenda", (req, res) => {
           local || "",
           latitude || "",
           longitude || "",
-          status || "Confirmada"
+          "Pendente"
         ],
         function (err) {
           if (err) {
