@@ -1,13 +1,189 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-title>agenda</ion-title>
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/dashboard"></ion-back-button>
+    </ion-buttons>
+
+    <ion-title>Agenda de Aulas</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">agenda</ion-title>
-    </ion-toolbar>
-  </ion-header>
+<ion-content class="ion-padding">
+
+  <ion-text color="success" *ngIf="mensagem">
+    <p>{{ mensagem }}</p>
+  </ion-text>
+
+  <ion-text color="danger" *ngIf="erro">
+    <p>{{ erro }}</p>
+  </ion-text>
+
+  <ion-button
+    expand="block"
+    (click)="abrirFormulario()"
+    *ngIf="!mostrarFormulario"
+  >
+    Nova aula
+  </ion-button>
+
+  <ion-card *ngIf="mostrarFormulario">
+    <ion-card-header>
+      <ion-card-title>Cadastrar aula</ion-card-title>
+    </ion-card-header>
+
+    <ion-card-content>
+
+      <ion-item>
+        <ion-select
+          label="Aluno"
+          labelPlacement="stacked"
+          placeholder="Selecione o aluno"
+          [(ngModel)]="novaAula.aluno_id"
+        >
+          <ng-container *ngFor="let aluno of alunos">
+            <ion-select-option
+              *ngIf="aluno.id"
+              [value]="aluno.id"
+            >
+              {{ aluno.nome }}
+            </ion-select-option>
+          </ng-container>
+        </ion-select>
+      </ion-item>
+
+      <ion-item>
+        <ion-input
+          label="Data"
+          labelPlacement="stacked"
+          type="date"
+          [(ngModel)]="novaAula.data"
+        ></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-input
+          label="Horário"
+          labelPlacement="stacked"
+          type="time"
+          [(ngModel)]="novaAula.horario"
+        ></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-input
+          label="Local"
+          labelPlacement="stacked"
+          placeholder="Ex.: Smart Fit Madalena"
+          [(ngModel)]="novaAula.local"
+        ></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-select
+          label="Status inicial"
+          labelPlacement="stacked"
+          [(ngModel)]="novaAula.status"
+        >
+          <ion-select-option
+            *ngFor="let status of statusDisponiveis"
+            [value]="status"
+          >
+            {{ status }}
+          </ion-select-option>
+        </ion-select>
+      </ion-item>
+
+      <ion-button
+        expand="block"
+        class="ion-margin-top"
+        (click)="salvarAula()"
+      >
+        Salvar aula
+      </ion-button>
+
+      <ion-button
+        expand="block"
+        fill="clear"
+        color="medium"
+        (click)="cancelarFormulario()"
+      >
+        Cancelar
+      </ion-button>
+
+    </ion-card-content>
+  </ion-card>
+
+  <div class="ion-text-center ion-padding" *ngIf="carregando">
+    <ion-spinner></ion-spinner>
+    <p>Carregando agenda...</p>
+  </div>
+
+  <ion-card
+    *ngFor="let aula of aulas"
+    [hidden]="carregando"
+  >
+    <ion-card-header>
+      <ion-card-subtitle>
+        {{ aula.data }} às {{ aula.horario }}
+      </ion-card-subtitle>
+
+      <ion-card-title>
+        {{ aula.aluno_nome || 'Aluno não encontrado' }}
+      </ion-card-title>
+    </ion-card-header>
+
+    <ion-card-content>
+
+      <p>
+        <strong>Local:</strong>
+        {{ aula.local || 'Não informado' }}
+      </p>
+
+      <ion-button
+        *ngIf="aula.local"
+        size="small"
+        fill="outline"
+        [href]="criarLinkMapa(aula.local)"
+        target="_blank"
+      >
+        Ver no mapa
+      </ion-button>
+
+      <ion-item class="ion-margin-top">
+        <ion-select
+          label="Status"
+          labelPlacement="stacked"
+          [value]="aula.status"
+          (ionChange)="alterarStatus(aula.id, $event.detail.value)"
+        >
+          <ion-select-option
+            *ngFor="let status of statusDisponiveis"
+            [value]="status"
+          >
+            {{ status }}
+          </ion-select-option>
+        </ion-select>
+      </ion-item>
+
+      <ion-button
+        expand="block"
+        color="danger"
+        fill="outline"
+        class="ion-margin-top"
+        (click)="excluirAula(aula.id)"
+      >
+        Excluir aula
+      </ion-button>
+
+    </ion-card-content>
+  </ion-card>
+
+  <ion-text
+    color="medium"
+    class="ion-text-center"
+    *ngIf="!carregando && aulas.length === 0"
+  >
+    <p>Nenhuma aula cadastrada.</p>
+  </ion-text>
+
 </ion-content>
