@@ -889,6 +889,202 @@ app.get("/debug/usuarios", (req, res) => {
   );
 });
 
+// CRIAR ACESSO PARA UM ALUNO JÁ CADASTRADO
+app.post("/alunos/:id/acesso", (req, res) => {
+  const alunoId = Number(req.params.id);
+  const { cpf, email, senha } = req.body;
+
+  const cpfNormalizado = normalizarCpf(cpf);
+  const emailNormalizado = normalizarEmail(email);
+
+  if (!alunoId) {
+    return res.status(400).json({
+      erro: "Aluno inválido."
+    });
+  }
+
+  if (!cpfNormalizado || cpfNormalizado.length !== 11) {
+    return res.status(400).json({
+      erro: "Informe um CPF com 11 números."
+    });
+  }
+
+  if (!emailNormalizado) {
+    return res.status(400).json({
+      erro: "Informe o e-mail do aluno."
+    });
+  }
+
+  if (!senha || senha.length < 6) {
+    return res.status(400).json({
+      erro: "A senha deve possuir pelo menos 6 caracteres."
+    });
+  }
+
+  // Primeiro verifica se o aluno realmente existe
+  db.get(
+    `SELECT * FROM alunos WHERE id = ?`,
+    [alunoId],
+    (err, aluno) => {
+      if (err) {
+        console.error("Erro ao buscar aluno:", err.message);
+
+        return res.status(500).json({
+          erro: "Erro ao buscar aluno."
+        });
+      }
+
+      if (!aluno) {
+        return res.status(404).json({
+          erro: "Aluno não encontrado."
+        });
+      }
+
+      // Verifica se já existe conta vinculada, CPF ou e-mail repetido
+      db.get(
+        `SELECT id, aluno_id, email, cpf
+         FROM usuarios
+         WHERE aluno_id = ?
+            OR email = ?
+            OR cpf = ?`,
+        [
+          alunoId,
+          emailNormalizado,
+          cpfNormalizado
+        ],
+        async (err, usuarioExistente) => {
+          if (err) {
+            console.error(
+              "Erro ao verificar acesso:",
+              err.message
+            );
+
+            return res.status(500).json({
+              erro: "Erro ao verificar acesso do aluno."
+            });
+          }
+
+          if (usuarioExistente) {
+            if (usuarioExistente.aluno_id === alunoId) {
+              return res.status(400).json({
+                erro: "Este aluno já possui acesso ao sistema."
+              });
+            }
+
+            return res.status(400).json({
+              erro: "CPF ou e-mail já utilizado por outro usuário."
+            });
+          }
+
+          try {
+            const senhaCriptografada = await bcrypt.hash(
+              senha,
+              10
+            );
+
+            db.serialize(() => {
+              db.run("BEGIN TRANSACTION");
+
+              // Atualiza CPF e e-mail no cadastro do aluno
+              db.run(
+                `UPDATE alunos
+                 SET cpf = ?, email = ?
+                 WHERE id = ?`,
+                [
+                  cpfNormalizado,
+                  emailNormalizado,
+                  alunoId
+                ],
+                function (err) {
+                  if (err) {
+                    db.run("ROLLBACK");
+
+                    console.error(
+                      "Erro ao atualizar aluno:",
+                      err.message
+                    );
+
+                    return res.status(500).json({
+                      erro: "Erro ao atualizar os dados do aluno."
+                    });
+                  }
+
+                  // Cria o usuário vinculado ao aluno
+                  db.run(
+                    `INSERT INTO usuarios
+                    (
+                      nome,
+                      cpf,
+                      email,
+                      senha,
+                      tipo,
+                      aluno_id,
+                      primeiro_acesso
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                      aluno.nome,
+                      cpfNormalizado,
+                      emailNormalizado,
+                      senhaCriptografada,
+                      "aluno",
+                      alunoId,
+                      1
+                    ],
+                    function (err) {
+                      if (err) {
+                        db.run("ROLLBACK");
+
+                        console.error(
+                          "Erro ao criar acesso:",
+                          err.message
+                        );
+
+                        return res.status(500).json({
+                          erro: "Erro ao criar acesso do aluno."
+                        });
+                      }
+
+                      const usuarioId = this.lastID;
+
+                      db.run("COMMIT", (err) => {
+                        if (err) {
+                          db.run("ROLLBACK");
+
+                          return res.status(500).json({
+                            erro: "Erro ao finalizar o cadastro."
+                          });
+                        }
+
+                        res.status(201).json({
+                          mensagem:
+                            "Acesso do aluno criado com sucesso!",
+                          usuario_id: usuarioId,
+                          aluno_id: alunoId,
+                          primeiro_acesso: true
+                        });
+                      });
+                    }
+                  );
+                }
+              );
+            });
+          } catch (erro) {
+            console.error(
+              "Erro ao criptografar senha:",
+              erro
+            );
+
+            res.status(500).json({
+              erro: "Erro ao criar acesso do aluno."
+            });
+          }
+        }
+      );
+    }
+  );
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor Evofit rodando em http://localhost:${PORT}`);
 });
