@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   selector: 'app-cadastro',
@@ -43,7 +44,7 @@ export class CadastroPage {
           this.router.navigate(['/login']);
         }, 1200);
       },
-      error: (err) => {
+      error: (err: HttpErrorResponse) => {
         this.erro = err.error?.erro || 'Erro ao criar conta.';
       }
     });
