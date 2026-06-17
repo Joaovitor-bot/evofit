@@ -1,34 +1,91 @@
 <ion-header>
   <ion-toolbar color="primary">
-    <ion-title>Evofit</ion-title>
+
+    <ion-buttons slot="start">
+      <ion-button (click)="voltar()">
+        Voltar
+      </ion-button>
+    </ion-buttons>
+
+    <ion-title>Login</ion-title>
+
   </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding">
+
   <div class="login-container">
-    <h1>Bem-vindo</h1>
-    <p>Sistema de gestão para personal trainers</p>
+
+    <h1>
+      {{
+        tipoAcesso === 'aluno'
+          ? 'Acesso do aluno'
+          : 'Acesso do personal'
+      }}
+    </h1>
+
+    <p>
+      Entre usando seu CPF ou e-mail e sua senha.
+    </p>
 
     <ion-item>
-      <ion-label position="floating">E-mail</ion-label>
-      <ion-input type="email" [(ngModel)]="email"></ion-input>
+      <ion-input
+        label="CPF ou e-mail"
+        labelPlacement="stacked"
+        type="text"
+        autocomplete="username"
+        [(ngModel)]="identificador"
+      ></ion-input>
     </ion-item>
 
     <ion-item>
-      <ion-label position="floating">Senha</ion-label>
-      <ion-input type="password" [(ngModel)]="senha"></ion-input>
+      <ion-input
+        label="Senha"
+        labelPlacement="stacked"
+        type="password"
+        autocomplete="current-password"
+        [(ngModel)]="senha"
+      ></ion-input>
     </ion-item>
 
-    <ion-button expand="block" class="ion-margin-top" (click)="entrar()">
-      Entrar
+    <ion-button
+      expand="block"
+      class="ion-margin-top"
+      [disabled]="carregando"
+      (click)="entrar()"
+    >
+      <ion-spinner
+        *ngIf="carregando"
+        name="crescent"
+      ></ion-spinner>
+
+      <span *ngIf="!carregando">
+        Entrar
+      </span>
     </ion-button>
 
-    <ion-button expand="block" fill="clear" routerLink="/cadastro">
-      Criar conta
+    <ion-button
+      *ngIf="tipoAcesso === 'personal'"
+      expand="block"
+      fill="clear"
+      routerLink="/cadastro"
+    >
+      Criar conta de personal
     </ion-button>
+
+    <ion-text
+      color="medium"
+      *ngIf="tipoAcesso === 'aluno'"
+    >
+      <p>
+        O acesso do aluno deve ser criado pelo personal responsável.
+      </p>
+    </ion-text>
 
     <ion-text color="danger" *ngIf="erro">
       <p>{{ erro }}</p>
     </ion-text>
+
   </div>
+
 </ion-content>
