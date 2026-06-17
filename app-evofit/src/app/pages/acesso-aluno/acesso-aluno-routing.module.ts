@@ -1,6 +1,7 @@
 import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
 
+
 import { AcessoAlunoPage } from './acesso-aluno.page';
 
 const routes: Routes = [

@@ -1,13 +1,140 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-title>acesso-aluno</ion-title>
+<ion-header>
+  <ion-toolbar color="primary">
+
+    <ion-buttons slot="start">
+      <ion-back-button
+        defaultHref="/dashboard"
+      ></ion-back-button>
+    </ion-buttons>
+
+    <ion-title>Acesso do Aluno</ion-title>
+
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">acesso-aluno</ion-title>
-    </ion-toolbar>
-  </ion-header>
+<ion-content class="ion-padding">
+
+  <ion-card>
+    <ion-card-header>
+
+      <ion-card-subtitle>
+        Conta de acesso
+      </ion-card-subtitle>
+
+      <ion-card-title>
+        Criar login para o aluno
+      </ion-card-title>
+
+    </ion-card-header>
+
+    <ion-card-content>
+
+      <p>
+        Selecione um aluno já cadastrado e defina
+        os dados que ele utilizará para entrar no app.
+      </p>
+
+      <div
+        class="ion-text-center ion-padding"
+        *ngIf="carregandoAlunos"
+      >
+        <ion-spinner></ion-spinner>
+        <p>Carregando alunos...</p>
+      </div>
+
+      <ng-container *ngIf="!carregandoAlunos">
+
+        <ion-item>
+          <ion-select
+            label="Aluno"
+            labelPlacement="stacked"
+            placeholder="Selecione um aluno"
+            [(ngModel)]="alunoId"
+          >
+            <ng-container *ngFor="let aluno of alunos">
+
+              <ion-select-option
+                *ngIf="aluno.id"
+                [value]="aluno.id"
+              >
+                {{ aluno.nome }}
+              </ion-select-option>
+
+            </ng-container>
+          </ion-select>
+        </ion-item>
+
+        <ion-item>
+          <ion-input
+            label="CPF"
+            labelPlacement="stacked"
+            placeholder="Somente números"
+            inputmode="numeric"
+            maxlength="14"
+            [(ngModel)]="cpf"
+          ></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-input
+            label="E-mail"
+            labelPlacement="stacked"
+            type="email"
+            autocomplete="email"
+            [(ngModel)]="email"
+          ></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-input
+            label="Senha temporária"
+            labelPlacement="stacked"
+            type="password"
+            [(ngModel)]="senha"
+          ></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-input
+            label="Confirmar senha"
+            labelPlacement="stacked"
+            type="password"
+            [(ngModel)]="confirmarSenha"
+          ></ion-input>
+        </ion-item>
+
+        <ion-button
+          expand="block"
+          class="ion-margin-top"
+          [disabled]="salvando"
+          (click)="criarAcesso()"
+        >
+          <ion-spinner
+            *ngIf="salvando"
+            name="crescent"
+          ></ion-spinner>
+
+          <span *ngIf="!salvando">
+            Criar acesso
+          </span>
+        </ion-button>
+
+      </ng-container>
+
+      <ion-text color="success" *ngIf="sucesso">
+        <p>{{ sucesso }}</p>
+      </ion-text>
+
+      <ion-text color="danger" *ngIf="erro">
+        <p>{{ erro }}</p>
+      </ion-text>
+
+    </ion-card-content>
+  </ion-card>
+
+  <ion-note>
+    A senha informada é temporária. Posteriormente,
+    o aluno deverá criar uma nova senha no primeiro acesso.
+  </ion-note>
+
 </ion-content>
