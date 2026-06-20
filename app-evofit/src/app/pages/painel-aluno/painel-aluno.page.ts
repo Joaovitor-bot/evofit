@@ -23,11 +23,14 @@ export class PainelAlunoPage {
 
   carregando = false;
   erro = '';
+  mensagem = '';
+  processandoAulaId: number | null = null;
   primeiroAcesso = false;
 
   constructor(
     private authService: AuthService,
     private painelAlunoService: PainelAlunoService,
+    private agendaService: AgendaService,
     private router: Router
   ) {}
 
@@ -88,6 +91,67 @@ export class PainelAlunoPage {
         }
       });
   }
+
+confirmarAula(aula: Aula): void {
+  this.atualizarStatusAula(
+    aula,
+    'Confirmada',
+    'Aula confirmada com sucesso!'
+  );
+}
+
+recusarAula(aula: Aula): void {
+  const confirmar = window.confirm(
+    'Deseja realmente recusar esta aula?'
+  );
+
+  if (!confirmar) {
+    return;
+  }
+
+  this.atualizarStatusAula(
+    aula,
+    'Recusada pelo aluno',
+    'Aula recusada.'
+  );
+}
+
+private atualizarStatusAula(
+  aula: Aula,
+  status: 'Confirmada' | 'Recusada pelo aluno',
+  mensagemSucesso: string
+): void {
+  if (!aula.id || aula.status !== 'Pendente') {
+    return;
+  }
+
+  this.erro = '';
+  this.mensagem = '';
+  this.processandoAulaId = aula.id;
+
+  this.agendaService
+    .atualizarStatus(aula.id, status)
+    .subscribe({
+      next: () => {
+        this.mensagem = mensagemSucesso;
+        this.processandoAulaId = null;
+        this.carregarPainel();
+      },
+
+      error: (err: HttpErrorResponse) => {
+        console.error(
+          'Erro ao responder agendamento:',
+          err
+        );
+
+        this.erro =
+          (err.error as any)?.erro ||
+          'Não foi possível responder ao agendamento.';
+
+        this.processandoAulaId = null;
+      }
+    });
+}
 
   corDoStatus(status: string): string {
     switch (status) {

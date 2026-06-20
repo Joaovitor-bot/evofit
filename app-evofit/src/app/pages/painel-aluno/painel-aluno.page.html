@@ -29,6 +29,10 @@
         <p>{{ erro }}</p>
       </ion-text>
 
+      <ion-text color="success" *ngIf="mensagem">
+        <p>{{ mensagem }}</p>
+      </ion-text>
+
       <ion-button
         expand="block"
         fill="outline"
@@ -126,15 +130,35 @@
           </ion-badge>
         </p>
 
-        <ion-text
-          color="warning"
-          *ngIf="aula.status === 'Pendente'"
-        >
-          <p>
-            Este agendamento está aguardando
-            sua confirmação.
-          </p>
-        </ion-text>
+        <div *ngIf="aula.status === 'Pendente'">
+
+          <ion-text color="warning">
+            <p>
+              O personal enviou este agendamento
+              para sua confirmação.
+            </p>
+          </ion-text>
+
+          <ion-button
+            expand="block"
+            color="success"
+            [disabled]="processandoAulaId === aula.id"
+            (click)="confirmarAula(aula)"
+          >
+            Confirmar aula
+          </ion-button>
+
+          <ion-button
+            expand="block"
+            color="danger"
+            fill="outline"
+            [disabled]="processandoAulaId === aula.id"
+            (click)="recusarAula(aula)"
+          >
+            Recusar aula
+          </ion-button>
+
+        </div>
 
       </ion-card-content>
     </ion-card>
