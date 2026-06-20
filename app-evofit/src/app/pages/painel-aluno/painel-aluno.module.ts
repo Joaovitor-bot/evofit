@@ -4,9 +4,13 @@ import { FormsModule } from '@angular/forms';
 
 import { IonicModule } from '@ionic/angular';
 
-import { PainelAlunoPageRoutingModule } from './painel-aluno-routing.module';
+import {
+  PainelAlunoPageRoutingModule
+} from './painel-aluno-routing.module';
 
-import { PainelAlunoPage } from './painel-aluno.page';
+import {
+  PainelAlunoPage
+} from './painel-aluno.page';
 
 @NgModule({
   imports: [
