@@ -239,25 +239,42 @@ app.post("/login", (req, res) => {
 app.post("/alunos", (req, res) => {
   const {
     nome,
+    cpf,
     data_nascimento,
     whatsapp,
     email,
     genero,
-    contato_emergencia
+    contato_emergencia,
+    status
   } = req.body;
 
   if (!nome) {
-    return res.status(400).json({ erro: "O nome do aluno é obrigatório." });
+    return res.status(400).json({
+      erro: "O nome do aluno é obrigatório."
+    });
   }
 
   db.run(
-    `INSERT INTO alunos 
-    (nome, data_nascimento, whatsapp, email, genero, contato_emergencia) 
-    VALUES (?, ?, ?, ?, ?, ?)`,
-    [nome, data_nascimento, whatsapp, email, genero, contato_emergencia],
+    `INSERT INTO alunos
+     (nome, cpf, data_nascimento, whatsapp, email, genero, contato_emergencia, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      nome,
+      cpf || null,
+      data_nascimento || null,
+      whatsapp || null,
+      email || null,
+      genero || null,
+      contato_emergencia || null,
+      status || "Ativo"
+    ],
     function (err) {
       if (err) {
-        return res.status(500).json({ erro: "Erro ao cadastrar aluno." });
+        console.error("Erro ao cadastrar aluno:", err.message);
+
+        return res.status(500).json({
+          erro: "Erro ao cadastrar aluno."
+        });
       }
 
       res.json({
@@ -282,8 +299,10 @@ app.get("/alunos", (req, res) => {
 // EDITAR ALUNO
 app.put("/alunos/:id", (req, res) => {
   const { id } = req.params;
+
   const {
     nome,
+    cpf,
     data_nascimento,
     whatsapp,
     email,
@@ -292,17 +311,46 @@ app.put("/alunos/:id", (req, res) => {
     status
   } = req.body;
 
+  if (!nome) {
+    return res.status(400).json({
+      erro: "O nome do aluno é obrigatório."
+    });
+  }
+
   db.run(
-    `UPDATE alunos 
-     SET nome = ?, data_nascimento = ?, whatsapp = ?, email = ?, genero = ?, contato_emergencia = ?, status = ?
+    `UPDATE alunos
+     SET nome = ?,
+         cpf = ?,
+         data_nascimento = ?,
+         whatsapp = ?,
+         email = ?,
+         genero = ?,
+         contato_emergencia = ?,
+         status = ?
      WHERE id = ?`,
-    [nome, data_nascimento, whatsapp, email, genero, contato_emergencia, status, id],
+    [
+      nome,
+      cpf || null,
+      data_nascimento || null,
+      whatsapp || null,
+      email || null,
+      genero || null,
+      contato_emergencia || null,
+      status || "Ativo",
+      id
+    ],
     function (err) {
       if (err) {
-        return res.status(500).json({ erro: "Erro ao editar aluno." });
+        console.error("Erro ao editar aluno:", err.message);
+
+        return res.status(500).json({
+          erro: "Erro ao editar aluno."
+        });
       }
 
-      res.json({ mensagem: "Aluno atualizado com sucesso!" });
+      res.json({
+        mensagem: "Aluno atualizado com sucesso!"
+      });
     }
   );
 });

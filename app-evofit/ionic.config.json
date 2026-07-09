@@ -1,7 +1,0 @@
-{
-  "name": "app-evofit",
-  "integrations": {
-    "capacitor": {}
-  },
-  "type": "angular"
-}
