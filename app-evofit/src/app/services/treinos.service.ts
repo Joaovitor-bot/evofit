@@ -10,6 +10,9 @@ export interface Treino {
   objetivo?: string;
   exercicios?: string;
   observacoes?: string;
+  status?: string;
+  concluido?: number;
+  data_conclusao?: string;
 }
 
 @Injectable({

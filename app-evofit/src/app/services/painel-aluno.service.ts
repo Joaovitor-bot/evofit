@@ -27,4 +27,17 @@ export class PainelAlunoService {
       `${this.apiUrl}/painel-aluno/${alunoId}`
     );
   }
+
+    finalizarTreino(
+    treinoId: number,
+    alunoId: number
+  ): Observable<any> {
+    return this.http.post(
+      `${this.apiUrl}/treinos/${treinoId}/concluir`,
+      {
+        aluno_id: alunoId
+      }
+    );
+  }
+  
 }

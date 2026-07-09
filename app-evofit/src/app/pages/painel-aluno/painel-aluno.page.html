@@ -218,6 +218,47 @@
           <p>{{ treino.observacoes }}</p>
         </div>
 
+                <p>
+          <strong>Status:</strong>
+
+          <ion-badge
+            [color]="treinoEstaConcluido(treino) ? 'success' : 'warning'"
+          >
+            {{
+              treinoEstaConcluido(treino)
+                ? 'Concluído'
+                : 'Pendente'
+            }}
+          </ion-badge>
+        </p>
+
+        <p
+          *ngIf="treino.data_conclusao"
+        >
+          <strong>Concluído em:</strong>
+          {{ treino.data_conclusao }}
+        </p>
+
+        <ion-button
+          expand="block"
+          color="success"
+          *ngIf="!treinoEstaConcluido(treino)"
+          [disabled]="processandoTreinoId === treino.id"
+          (click)="finalizarTreino(treino)"
+        >
+          Finalizar treino
+        </ion-button>
+
+        <ion-button
+          expand="block"
+          color="medium"
+          fill="outline"
+          *ngIf="treinoEstaConcluido(treino)"
+          disabled
+        >
+          Treino concluído
+        </ion-button>
+
       </ion-card-content>
     </ion-card>
 

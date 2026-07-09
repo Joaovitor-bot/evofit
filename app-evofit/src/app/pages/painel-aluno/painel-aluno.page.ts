@@ -25,6 +25,7 @@ export class PainelAlunoPage {
   erro = '';
   mensagem = '';
   processandoAulaId: number | null = null;
+  processandoTreinoId: number | null = null;
   primeiroAcesso = false;
 
   constructor(
@@ -152,7 +153,63 @@ private atualizarStatusAula(
       }
     });
 }
+  finalizarTreino(treino: Treino): void {
+    if (!treino.id || !this.aluno?.id) {
+      return;
+    }
 
+    if (
+      treino.status === 'Concluído' ||
+      treino.concluido === 1
+    ) {
+      return;
+    }
+
+    const confirmar = window.confirm(
+      'Deseja marcar este treino como concluído?'
+    );
+
+    if (!confirmar) {
+      return;
+    }
+
+    this.erro = '';
+    this.mensagem = '';
+    this.processandoTreinoId = treino.id;
+
+    this.painelAlunoService
+      .finalizarTreino(treino.id, this.aluno.id)
+      .subscribe({
+        next: () => {
+          this.mensagem =
+            'Treino marcado como concluído com sucesso!';
+
+          this.processandoTreinoId = null;
+          this.carregarPainel();
+        },
+
+        error: (err: HttpErrorResponse) => {
+          console.error(
+            'Erro ao finalizar treino:',
+            err
+          );
+
+          this.erro =
+            (err.error as any)?.erro ||
+            'Não foi possível finalizar o treino.';
+
+          this.processandoTreinoId = null;
+        }
+      });
+  }
+
+  treinoEstaConcluido(treino: Treino): boolean {
+    return (
+      treino.status === 'Concluído' ||
+      treino.concluido === 1
+    );
+  }
+  
   corDoStatus(status: string): string {
     switch (status) {
       case 'Pendente':
