@@ -307,6 +307,116 @@ app.put("/alunos/:id", (req, res) => {
   );
 });
 
+// MARCAR TREINO COMO CONCLUÍDO PELO ALUNO
+app.post("/treinos/:id/concluir", (req, res) => {
+  const treinoId = Number(req.params.id);
+  const { aluno_id } = req.body;
+
+  if (!treinoId || !aluno_id) {
+    return res.status(400).json({
+      erro: "Treino e aluno são obrigatórios."
+    });
+  }
+
+  db.get(
+    `SELECT * FROM treinos WHERE id = ? AND aluno_id = ?`,
+    [treinoId, Number(aluno_id)],
+    (err, treino) => {
+      if (err) {
+        console.error("Erro ao buscar treino:", err.message);
+
+        return res.status(500).json({
+          erro: "Erro ao buscar treino."
+        });
+      }
+
+      if (!treino) {
+        return res.status(404).json({
+          erro: "Treino não encontrado para este aluno."
+        });
+      }
+
+      db.get(
+        `SELECT id FROM treino_conclusoes
+         WHERE treino_id = ? AND aluno_id = ?`,
+        [treinoId, Number(aluno_id)],
+        (err, conclusaoExistente) => {
+          if (err) {
+            console.error("Erro ao verificar conclusão:", err.message);
+
+            return res.status(500).json({
+              erro: "Erro ao verificar conclusão do treino."
+            });
+          }
+
+          if (conclusaoExistente) {
+            return res.status(400).json({
+              erro: "Este treino já foi marcado como concluído."
+            });
+          }
+
+          db.serialize(() => {
+            db.run("BEGIN TRANSACTION");
+
+            db.run(
+              `INSERT INTO treino_conclusoes
+               (aluno_id, treino_id, data_conclusao)
+               VALUES (?, ?, CURRENT_TIMESTAMP)`,
+              [Number(aluno_id), treinoId],
+              function (err) {
+                if (err) {
+                  db.run("ROLLBACK");
+
+                  console.error("Erro ao registrar conclusão:", err.message);
+
+                  return res.status(500).json({
+                    erro: "Erro ao registrar conclusão do treino."
+                  });
+                }
+
+                db.run(
+                  `UPDATE treinos
+                   SET status = 'Concluído'
+                   WHERE id = ?`,
+                  [treinoId],
+                  function (err) {
+                    if (err) {
+                      db.run("ROLLBACK");
+
+                      console.error("Erro ao atualizar treino:", err.message);
+
+                      return res.status(500).json({
+                        erro: "Erro ao atualizar status do treino."
+                      });
+                    }
+
+                    db.run("COMMIT", (err) => {
+                      if (err) {
+                        db.run("ROLLBACK");
+
+                        return res.status(500).json({
+                          erro: "Erro ao finalizar operação."
+                        });
+                      }
+
+                      res.json({
+                        mensagem: "Treino marcado como concluído!",
+                        treino_id: treinoId,
+                        aluno_id: Number(aluno_id),
+                        status: "Concluído"
+                      });
+                    });
+                  }
+                );
+              }
+            );
+          });
+        }
+      );
+    }
+  );
+});
+
 // EXCLUIR ALUNO
 app.delete("/alunos/:id", (req, res) => {
   const { id } = req.params;
@@ -346,12 +456,19 @@ app.get("/treinos", (req, res) => {
   const { aluno_id } = req.query;
 
   let sql = `
-    SELECT 
-      treinos.*,
-      alunos.nome AS aluno_nome
-    FROM treinos
-    LEFT JOIN alunos ON alunos.id = treinos.aluno_id
-  `;
+  SELECT 
+    treinos.*,
+    alunos.nome AS aluno_nome,
+    treino_conclusoes.data_conclusao,
+    CASE
+      WHEN treino_conclusoes.id IS NOT NULL THEN 1
+      ELSE 0
+    END AS concluido
+  FROM treinos
+  LEFT JOIN alunos ON alunos.id = treinos.aluno_id
+  LEFT JOIN treino_conclusoes
+    ON treino_conclusoes.treino_id = treinos.id
+`;
 
   const params = [];
 
