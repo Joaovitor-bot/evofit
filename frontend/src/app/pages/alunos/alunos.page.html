@@ -1,0 +1,148 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>Alunos</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+
+  <ion-button expand="block" (click)="abrirForm()">Novo Aluno</ion-button>
+
+    <ion-card *ngIf="mostrarForm">
+    <ion-card-header>
+      <ion-card-title>
+        {{ atualAluno.id ? 'Editar aluno' : 'Novo aluno' }}
+      </ion-card-title>
+    </ion-card-header>
+
+    <ion-card-content>
+      <ion-item>
+        <ion-label position="floating">Nome completo</ion-label>
+        <ion-input [(ngModel)]="atualAluno.nome"></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="floating">CPF</ion-label>
+        <ion-input
+          [(ngModel)]="atualAluno.cpf"
+          maxlength="14"
+        ></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="floating">Data de nascimento</ion-label>
+        <ion-input
+          type="date"
+          [(ngModel)]="atualAluno.data_nascimento"
+        ></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="floating">WhatsApp</ion-label>
+        <ion-input
+          type="tel"
+          [(ngModel)]="atualAluno.whatsapp"
+        ></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="floating">E-mail</ion-label>
+        <ion-input
+          type="email"
+          [(ngModel)]="atualAluno.email"
+        ></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-label>Gênero</ion-label>
+        <ion-select [(ngModel)]="atualAluno.genero">
+          <ion-select-option
+            *ngFor="let g of generos"
+            [value]="g"
+          >
+            {{ g }}
+          </ion-select-option>
+        </ion-select>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="floating">Contato de emergência</ion-label>
+        <ion-input
+          [(ngModel)]="atualAluno.contato_emergencia"
+        ></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-label>Status</ion-label>
+        <ion-select [(ngModel)]="atualAluno.status">
+          <ion-select-option
+            *ngFor="let status of statusAlunos"
+            [value]="status"
+          >
+            {{ status }}
+          </ion-select-option>
+        </ion-select>
+      </ion-item>
+
+      <ion-button
+        expand="block"
+        color="success"
+        (click)="salvarAluno()"
+      >
+        Salvar aluno
+      </ion-button>
+
+      <ion-button
+        expand="block"
+        fill="clear"
+        (click)="cancelarForm()"
+      >
+        Cancelar
+      </ion-button>
+    </ion-card-content>
+  </ion-card>
+
+    <ion-list>
+    <ion-item *ngFor="let aluno of alunos">
+      <ion-label>
+        <h2>{{ aluno.nome }}</h2>
+
+        <p>
+          {{ aluno.whatsapp || 'Sem WhatsApp' }}
+          •
+          {{ aluno.email || 'Sem e-mail' }}
+        </p>
+
+        <p>
+          {{ aluno.genero || 'Gênero não informado' }}
+          •
+          {{ aluno.status || 'Ativo' }}
+        </p>
+      </ion-label>
+
+      <ion-badge
+        slot="end"
+        [color]="aluno.status === 'Inativo' ? 'medium' : 'success'"
+      >
+        {{ aluno.status || 'Ativo' }}
+      </ion-badge>
+
+      <ion-button
+        color="primary"
+        slot="end"
+        (click)="abrirForm(aluno)"
+      >
+        Editar
+      </ion-button>
+
+      <ion-button
+        color="danger"
+        slot="end"
+        (click)="aluno.id && excluirAluno(aluno.id)"
+      >
+        Excluir
+      </ion-button>
+    </ion-item>
+  </ion-list>
+
+</ion-content>
